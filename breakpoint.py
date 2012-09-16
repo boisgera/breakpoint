@@ -2,62 +2,86 @@
 
 import time
 
-# is dt of any use ? Two issues: filter the callback calls (but that can
-# be done as a post-processing step) and adapt (reduce / increase) the 
-# number of yields. But that step INCREASES the complexity of client code
-# ... instead the client should roughly know how to subdivide the stuff
-# right ? Anyway, the fine tweaking with the number of steps should be
-# optional (or not implemented), but not in the way.
+# keywords: breakpoint, timing, etc.
 
-# TODO: manage dt = None (aka callback at every yield).
+# Use iterators/generators instead of threads ? The values obtained are
+# progress < 1.0 until we obtain 1.0, then the last value is the result ?
+# Nah, go for a StopIteration and get the previous value ? But before,
+# we would try to use it as a progress ... end with yield 1.0, result ?
 
-# TODO: can we use python generator to STOP the function (if the partial
-#       computations we have are good enough ?). With a StopIteration
-#       in the callback ?
+# Use the .send method to say if the frequency of the outputs should be
+# increased / decreased (that may be ignored). What kind of message ?
+# A frequency multiplier ? Yup. And the receiver is free to do something
+# for example only if multiplier is > 2 or < 1/2.
 
-# TODO: possible that progress is Unknown (None) if we STREAM something
-#       for example ... Handle this case => Invert the pattern, and
-#       put progress second ? That would allow some yield value at the end ?
-#       Arf that would be ambigous if the return value is a tuple already ...
-#       Too bad ! Or pack everything that is not a value in a custom class ?
-#       And introspect the stuff ? Progress class ?
-
-
-def split(dt=0.0, callback=None):
-    def splitter(function):
-        return Splitted(function, dt, callback)
-    return splitter
-
-class Splitted(object):
-    def __init__(self, function, dt, callback):
-        self.function = function
-        self.dt = dt
-        self.callback = callback
-    def __call__(self, *args, **kwargs):
-        iterator = self.function(*args, **kwargs)
-        callback = self.callback or (lambda: None)
-        self.t = self.t0 = time.time()
-        for progress, value in iterator:
-            dt = time.time() - self.t
-            if dt >= self.dt:
-                self.t = self.t + dt
-                callback(progress, value, self.t - self.t0)                
-        return value
-
-def display(progress, value, elapsed):
-    print "{0} %, {1} s.".format(progress*100, elapsed)
-
-@split(dt=5.0, callback=display)
-def try_me(count=100000000):
-    for i in range(count):
-        pass
-        yield (float(i+1) / count, None)
-    yield (1.0, count)
-
-if __name__ == "__main__":
-    print try_me()
+def breakpoint(dt=1.0):
+    def broken(function):
+        def broken_(*args, **kwargs):
+            generator = function(*args, **kwargs)
+            stop, result = None, None
+            t0 = t = time.time()
+            multiplier = None
+            progress = 0.0
+            while True:
+                try:
+                    new_progress = generator.send(multiplier)
+                    if isinstance(new_progress, tuple):
+                        new_progress, result = new_progress
+                        stop = True
+                    else:
+                        dt_ = time.time() - t
+                        multiplier = dt / dt_
+                        #print "x", multiplier
+                        t = t + dt_
+                        #print "dt_", dt
+                        #print "progress", progress
+                        try:
+                            rt = (1.0 - new_progress) / new_progress * (t - t0)
+                            rt2 = (1.0 - new_progress) / (new_progress - progress) * dt_
+                            # way to smooth the stuff ? With a weight that
+                            # is more important for recent evaluations, but
+                            # tempered by a (possibly large) collection of
+                            # previous evals ?
+                            # Recursive equations for the slope ? And deduce
+                            # the remaining time ?
+                            # - given DT/DP and dt/dp, how can we configure
+                            #   to get dt/dp (easy !) and DT + dt / dp + Dp ?
+                            # yes:
+                            # DT + dt / dp + Dp = alpha dt/dp + (1-alpha) Dt/Dp
+                            # with
+                            # alpha = dp / (dp + Dp)
+                            #
+                            # -> introduce a 'beta' factor such as
+                            # beta = 0 -> instant. slope and beta = 1 -> total
+                            # slope ? Or fixed alpha ?
 
 
+                        except ZeroDivisionError:
+                            rt = rt2 = float("inf") 
+                        print "time remaining: {0}/{1}".format(rt, rt2)
+                        if stop:
+                            return result
+                        progress = new_progress
+                except StopIteration:
+                     return "UUUUU"
+        return broken_
+    return broken
 
 
+@breakpoint(dt=1.0)
+def test():
+   a = 1
+   f = 1.0
+   N = 100000000
+   m = 0
+   for i in xrange(N):
+       m = m % int(f)
+       if m == 0:
+           #print float(i) / N, f
+           xfreq = (yield (float(i) / N))
+           #print "x freq:", xfreq
+           f = f * xfreq # cap xfreq ? log scale ? Limit to x0.1-x10.0
+       a += 1
+       m += 1
+   yield 1.0, "bazinga"
 
