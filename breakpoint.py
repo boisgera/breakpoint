@@ -1,18 +1,24 @@
 #!/usr/bin/env python
+# coding: utf-8
 
 """
-Breakpoint
-
+Function Execution Progress Tracker
 """
 
-
+# Python 2.7 Standard Library
 import time
 
+#
+# Metadata
+# ------------------------------------------------------------------------------
+#
 __author__ = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
 __license__ = "MIT License"
 __url__ = "https://github.com/boisgera/breakpoint" 
 __version__ = None
 
+# Random Notes
+# ------------------------------------------------------------------------------
 # keywords: breakpoint, timing, etc.
 
 # Use iterators/generators instead of threads ? The values obtained are
@@ -79,6 +85,8 @@ def breakpoint(dt=1.0, handler=None):
         return broken_
     return broken
 
+# Test
+# ------------------------------------------------------------------------------
 
 @breakpoint(dt=1.0)
 def test():
