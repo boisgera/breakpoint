@@ -1,6 +1,17 @@
 #!/usr/bin/env python
 
+"""
+Breakpoint
+
+"""
+
+
 import time
+
+__author__ = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
+__license__ = "MIT License"
+__url__ = "https://github.com/boisgera/breakpoint" 
+__version__ = None
 
 # keywords: breakpoint, timing, etc.
 
@@ -14,7 +25,8 @@ import time
 # A frequency multiplier ? Yup. And the receiver is free to do something
 # for example only if multiplier is > 2 or < 1/2.
 
-def breakpoint(dt=1.0):
+def breakpoint(dt=1.0, handler=None):
+    "Breakpoint decorator"
     def broken(function):
         def broken_(*args, **kwargs):
             generator = function(*args, **kwargs)
