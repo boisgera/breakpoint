@@ -14,7 +14,7 @@ import time
 __author__ = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
 __license__ = "MIT License"
 __url__ = "https://github.com/boisgera/breakpoint" 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 #
 # Mics. Notes
