@@ -14,10 +14,10 @@ import time
 __author__ = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
 __license__ = "MIT License"
 __url__ = "https://github.com/boisgera/breakpoint" 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 #
-# Mics. Notes
+# Misc. Notes
 # ------------------------------------------------------------------------------
 # keywords: breakpoint, timing, etc.
 #
@@ -58,8 +58,47 @@ __version__ = "1.0.1"
 # beta = 0 -> instant. slope and beta = 1 -> total
 # slope ? Or fixed alpha ?
 #
+#
+# Make dt optional ? Default to no time estimate or to 1.0 ?
+# Make multiplier possibly return None ?
+#
+#
+# Provide no progress estimate ?
+#
+# "Smoothing" options for remaining time estimate.
+#
+# replace handler with handlers ? Use *handlers ?
+#
+#
+# Use the breakpoint decorated to extend the function signature ?
+# That would allow dt and handlers to be given at runtime. We would
+# stick to the convention that without extra parameters, the function
+# is executed normally. Would that be more flexible ? That would allow
+# use to get rid of the mandatory handler *factory* level, the user
+# would instantiate the handlers as necessary.
+#
+# The extra arguments would be `_dt` and `_on_breakpoint` or `on_break`
+# with a callable (or a list of callables). Underscores ? Really ?
+# What if `dt` is already taken ... Distinguish static breakpoint 
+# decorator and dynamic one ? Do we need to have two names ?
+# or call with no arguments (or with arguments) dt, on_break and a
+# last one, `dynamic` or `overridable`, etc., that if True, allows
+# for the dt and handler arguments to be overriden at runtime
+# (but then, on_break would be a handler, not a handler factory ?).
+# Use `on_break_factory` in the static version ? urk ...
+#
+# OK, dynamic **is** necessary (for example, we may set dt from the 
+# command-line, but the function call system suck. Maybe add a bunch
+# of extra attributes to the function ? How can the function access
+# those values ? OK, we return instead a callable instance, that one
+# can access its attribute without any problem. See if that policy
+# sticks ... Get rid of static / non-configurable decorator 
+# arguments altogether ? Or keep them as a shortcut ?
+#
+# Can this policy be used on **methods** ?
+#
 
-def breakpoint(dt=1.0, handler=None):
+def breakpoint(dt=None, handler=None):
     """
     Breakpoint decorator
 
@@ -71,62 +110,171 @@ def breakpoint(dt=1.0, handler=None):
         estimate is available.
 
       - `handler` is an optional function that is called at each step. 
-        Its signature shall be:
+        Its signature shall be (with positional arguments):
 
-            def handler(progress, elapsed_time, remaining_time)
+            def handler(progress, elapsed, remaining, result)
     """
     def broken(function):
+        if handler is not None:
+            handler_ = handler()
+        else:
+            handler_ = None
+
         def broken_(*args, **kwargs):
             generator = function(*args, **kwargs)
-            stop, result = None, None
             t0 = t = time.time()
             multiplier = None
-            progress = 0.0
             while True:
                 try:
-                    new_progress = generator.send(multiplier)
-                    if isinstance(new_progress, tuple):
-                        new_progress, result = new_progress
-                        stop = True
+                    progress, result = generator.send(multiplier)
                     dt_ = time.time() - t
-                    multiplier = dt / dt_
+                    if dt is not None:
+                        multiplier = dt / dt_
                     t = t + dt_
                     try:
-                        rt = (1.0 - new_progress) / new_progress * (t - t0)
-
+                        rt = (1.0 - progress) / progress * (t - t0)
                     except ZeroDivisionError:
                         rt = float("inf")
-                        #rt2 = float("inf") 
-                    if handler is not None:
-                        handler(new_progress, t-t0, rt)
-                    if stop:
-                        return result
-                    progress = new_progress
+                    if handler_ is not None:
+                        handler_(progress, t-t0, rt, result)
                 except StopIteration:
-                     raise
+                    return result
         return broken_
     return broken
+
+
+#
+# Handlers
+# ------------------------------------------------------------------------------
+#
+
+# Handler Use Cases:
+#   - printers (elapsed time mostly),
+#   - "gimme what you got" (with exception of with return of the early result),
+#   - "don't bother" (remaining time too long after the first few samples).
+
+# go to the end (real timeout) or abort asap (estimated timeout) ?
+
+class AbortException(Exception):
+    def __init__(self, progress, elapsed, remaining, result):
+        self.progress  = progress
+        self.elapsed   = elapsed
+        self.remaining = remaining
+        self.result    = result
+        self.args = (progress, elapsed, remaining, result)
+
+def timeout(time, abort=True, asap=False):
+    def handler_factory():
+        large_remaining = [0]
+        if abort and asap:
+            def handler(progress, elapsed, remaining, result):
+                if elapsed + remaining > time:
+                    large_remaining[0] += 1
+                    # tweakability ? Use a mean on remaining instead ? 
+                    # Mean at least for 1% of the progress to be sure ?
+                    if large_remaining[0] >= 5 and progress >= 0.01:
+                        raise AbortException(progress, elapsed, remaining, result)
+        elif abort and not asap:
+            def handler(progress, elapsed, remaining, result):
+                if elapsed >= time:
+                    raise AbortException(progress, elapsed, remaining, result)
+        else:
+            def handler(progress, elapsed, remaining, result):
+                if elapsed >= time:
+                    raise StopIteration()
+        return handler
+    return handler_factory
 
 #
 # Test
 # ------------------------------------------------------------------------------
 #
 
-def handler(p, e, r):
-    print p, e, r
+def printer():
+    def _printer(*args):
+        print args
+    return _printer
 
-@breakpoint(dt=1.0, handler=handler)
-def test():
-   a = 1
-   f = 1.0
-   N = 100000000
-   m = 0
+@breakpoint(dt=5.0, handler=printer)
+def test(N=100000):
+   count, stop = 0, 1.0
    for i in xrange(N):
-       m = m % int(f)
-       if m == 0:
-           xfreq = (yield (float(i) / N))
-           f = f * xfreq # cap xfreq ? log scale ? Limit to x0.1-x10.0
-       a += 1
-       m += 1
-   yield 1.0, "bazinga"
+       if count >= stop: # time to compute a new progress estimate 
+                         # and partial result.
+           count = 0
+           progress = float(i) / N
+           multiplier = yield progress, None
+           print "x:", multiplier
+           stop = multiplier * stop
+       count += 1
+
+       # the actual "work"
+       time.sleep(0.001)
+
+   yield 1.0, "Done"
+
+def fib0(n):
+    result = []
+    a, b = 0, 1
+    while a < n:
+        time.sleep(0.1)
+        a, b = b, a + b
+        result.append(a)
+    return result
+
+# not gonna use dt here (no multiplier use), dt=None should be the default
+@breakpoint(dt=0.001, handler=printer)
+def fib1(n):
+    result = []
+    a, b = 0, 1
+    while a < n:
+        progress = float(a) / n
+        yield progress, result
+        time.sleep(0.1)
+        a, b = b, a + b
+        result.append(a)
+    yield 1.0, result
+
+@breakpoint(dt=1.0, handler=printer)
+def fib2(n):
+    result = []
+    a, b = 0, 1
+    counter, limit = 0, 1.0
+    while a < n:
+        if counter >= limit:
+            counter = 0
+            progress = float(a) / n
+            multiplier = yield progress, result
+            limit = max(1.0, multiplier * limit)
+            print "***: x, l ***:", multiplier, limit
+
+        time.sleep(0.1)
+        a, b = b, a + b
+        result.append(a)
+
+        counter += 1
+
+    yield 1.0, result
+
+#
+# go for Sieve of Eratosthenes example ?
+#
+# example where we stop after 10 sec ? Can we make the handler do something
+# such as return a value ? Should we define a special exception for that that
+# would encapsulate the early result ? EarlyResult(result) ? Or play with the
+# return value of handler ? (if any, this is an early result ? but then what
+# if the result should be None ? We could already do that by raising 
+# StopIteration, so that's only if we want to provide an early result THAT
+# IS SOMETHING ELSE THEN THE PARTIAL RESULT ! Exception would be a good fit
+# for that situation ...
+#
+
+@breakpoint(handler=timeout(10.0, abort=False))
+def wait(N=100):
+    for i in range(N):
+        print "i:", i
+        yield float(i) / N, i
+        time.sleep(1.0)
+    yield 1.0, True
+
 
