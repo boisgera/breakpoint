@@ -14,7 +14,7 @@ import time
 __author__ = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
 __license__ = "MIT License"
 __url__ = "https://github.com/boisgera/breakpoint" 
-__version__ = "1.0.2"
+__version__ = "2.0.0"
 
 #
 # Misc. Notes
@@ -106,13 +106,14 @@ def breakpoint(dt=None, handler=None):
 
       - `dt` is the target time between two successive generator yields. 
         The generator that is decorated is sent at each new stage a number
-        that is a prescribed yield frequency multiplier, or `None` if no
+        that is a prescribed yield period multiplier, or `None` if no
         estimate is available.
 
-      - `handler` is an optional function that is called at each step. 
-        Its signature shall be (with positional arguments):
+      - `handler` is an optional function factory that is called at each step.
+        The signature of the function that is created by `on = handler()` shall 
+        be (with positional arguments):
 
-            def handler(progress, elapsed, remaining, result)
+            def on(progress, elapsed, remaining, result)
     """
     def broken(function):
         if handler is not None:
@@ -129,7 +130,10 @@ def breakpoint(dt=None, handler=None):
                     progress, result = generator.send(multiplier)
                     dt_ = time.time() - t
                     if dt is not None:
-                        multiplier = dt / dt_
+                        try:
+                            multiplier = dt / dt_
+                        except ZeroDivisionError:
+                            multiplier = float("inf")
                     t = t + dt_
                     try:
                         rt = (1.0 - progress) / progress * (t - t0)
