@@ -5,6 +5,7 @@ Progress Tracker
 """
 
 # Python 2.7 Standard Library
+from __future__ import division
 import time
 
 #
@@ -110,11 +111,14 @@ def breakpoint(dt=None, handler=None):
         estimate is available.
 
       - `handler` is an optional function factory that is called at each step.
-        The signature of the function that is created by `on = handler()` shall 
-        be (with positional arguments):
+        The signature of the function that is created by `handler_ = handler()` 
+        shall be (with positional arguments):
 
-            def on(progress, elapsed, remaining, result)
+            def handler_(progress, elapsed, remaining, result)
     """
+    if dt == 0.0:
+        raise ValueError("dt=0.0 is invalid, it shall be positive (or None).")
+
     def broken(function):
         if handler is not None:
             handler_ = handler()
@@ -123,23 +127,33 @@ def breakpoint(dt=None, handler=None):
 
         def broken_(*args, **kwargs):
             generator = function(*args, **kwargs)
-            t0 = t = time.time()
+            t0 = t = None
             multiplier = None
             while True:
                 try:
                     progress, result = generator.send(multiplier)
-                    dt_ = time.time() - t
-                    if dt is not None:
+                    if t0 is None: # first yield
+                        t0 = t = time.time()
+                        progress = 0.0
+                        rt = float("nan")
+                    else:
+                        t_ = time.time()
+                        dt_ = t_ - t
+                        t = t_
+                        if dt is not None:
+                            try:
+                                multiplier = dt / dt_
+                            except ZeroDivisionError:
+                                multiplier = float("inf")
                         try:
-                            multiplier = dt / dt_
+                            rt = (1.0 - progress) / progress * (t - t0)
                         except ZeroDivisionError:
-                            multiplier = float("inf")
-                    t = t + dt_
-                    try:
-                        rt = (1.0 - progress) / progress * (t - t0)
-                    except ZeroDivisionError:
-                        rt = float("inf")
+                            if progress < 1.0:
+                                rt = float("inf")
+                            else:
+                                rt = float("nan")
                     if handler_ is not None:
+            # TODO: change the "positional arguments" policy ? Actually it sucks.
                         handler_(progress, t-t0, rt, result)
                 except StopIteration:
                     return result
@@ -194,84 +208,80 @@ def timeout(time, abort=True, asap=False):
 # ------------------------------------------------------------------------------
 #
 
+
+# This is ugly.
 def printer():
     def _printer(*args):
         print args
     return _printer
 
-@breakpoint(dt=5.0, handler=printer)
-def test(N=100000):
-   count, stop = 0, 1.0
-   for i in xrange(N):
-       if count >= stop: # time to compute a new progress estimate 
-                         # and partial result.
-           count = 0
-           progress = float(i) / N
-           multiplier = yield progress, None
-           print "x:", multiplier
-           stop = multiplier * stop
-       count += 1
-
-       # the actual "work"
-       time.sleep(0.001)
-
-   yield 1.0, "Done"
-
-def fib0(n):
-    result = []
-    a, b = 0, 1
-    while a < n:
-        time.sleep(0.1)
-        a, b = b, a + b
-        result.append(a)
+def counter0(n):
+    result = 0
+    while result < n:
+        time.sleep(0.1); result = result + 1
     return result
 
-# not gonna use dt here (no multiplier use), dt=None should be the default
-@breakpoint(dt=0.001, handler=printer)
-def fib1(n):
-    result = []
-    a, b = 0, 1
-    while a < n:
-        progress = float(a) / n
+@breakpoint(handler=printer)
+def counter1(n):
+    result = 0
+    while result < n:
+        # measure progress (as a float in [0,1])
+        progress = result / n
+        # export the progress and partial result
         yield progress, result
-        time.sleep(0.1)
-        a, b = b, a + b
-        result.append(a)
+        # perform the actual computation
+        time.sleep(0.1); result = result + 1
+    # progress is 1.0 and the result is final
     yield 1.0, result
+
+# The int/float counter threshold is actually nifty, because it is adaptative
+# despite the discrete constraint on the loop atoms. It is asymptotically exact ?
+# Is the mean elapsed time equal to the target elapsed time ?
 
 @breakpoint(dt=1.0, handler=printer)
-def fib2(n):
-    result = []
-    a, b = 0, 1
-    counter, limit = 0, 1.0
-    while a < n:
-        if counter >= limit:
+def counter2(n):
+    result = 0
+    counter, threshold = 1, 1.0
+    while result < n:
+        # time to yield ?
+        if counter >= threshold:
             counter = 0
-            progress = float(a) / n
+            progress = result / n
             multiplier = yield progress, result
-            limit = max(1.0, multiplier * limit)
-            print "***: x, l ***:", multiplier, limit
-
-        time.sleep(0.1)
-        a, b = b, a + b
-        result.append(a)
-
+            if multiplier is not None:
+                 threshold = multiplier * threshold
+        time.sleep(0.1); result = result + 1
         counter += 1
-
     yield 1.0, result
 
-#
-# go for Sieve of Eratosthenes example ?
-#
+# Q: Its it worth partially "hiding" the pattern into a helper class and opaque
+#    objects ? Would become something like below. I don't know really. It's
+#    maybe slightly more explicit but probably slower and less hackable ...
+
+@breakpoint(dt=1.0, handler=printer)
+def counter2_with_helper(n):
+    result = 0
+    watchdog = Watchdog()
+    while result < n:
+        # time to yield ?
+        if watchdog.ready:
+            progress = result / n
+            watchdog.update((yield progress, result))
+            watchdog.reset()
+        time.sleep(0.1); result = result + 1
+        watchdog.next()
+    yield 1.0, result
+
 # example where we stop after 10 sec ? Can we make the handler do something
 # such as return a value ? Should we define a special exception for that that
-# would encapsulate the early result ? EarlyResult(result) ? Or play with the
+# would encapsulate the early result ? PartialResult(result) ? Or play with the
 # return value of handler ? (if any, this is an early result ? but then what
 # if the result should be None ? We could already do that by raising 
 # StopIteration, so that's only if we want to provide an early result THAT
 # IS SOMETHING ELSE THEN THE PARTIAL RESULT ! Exception would be a good fit
 # for that situation ...
-#
+# NB: we could be in the situation where we want to examine manually the
+# partial result and then RESUME the computation. Can we support that ?
 
 @breakpoint(handler=timeout(10.0, abort=False))
 def wait(N=100):
