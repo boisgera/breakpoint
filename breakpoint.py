@@ -272,6 +272,10 @@ def counter2_with_helper(n):
         watchdog.next()
     yield 1.0, result
 
+# Could also try an iterator pattern where __iter__ provides instantation
+# and next, well, is next... Study that possibility, see if it leads to
+# a simpler and more consistent API.
+
 # example where we stop after 10 sec ? Can we make the handler do something
 # such as return a value ? Should we define a special exception for that that
 # would encapsulate the early result ? PartialResult(result) ? Or play with the
