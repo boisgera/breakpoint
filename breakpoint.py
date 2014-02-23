@@ -274,7 +274,10 @@ def counter2_with_helper(n):
 
 # Could also try an iterator pattern where __iter__ provides instantation
 # and next, well, is next... Study that possibility, see if it leads to
-# a simpler and more consistent API.
+# a simpler and more consistent API. For one, can we 'merge' the iteration
+# of the computation and the iteration on the watchdog ? with izip ?
+# What is the watchdog supposed to return as a value ? Something that we 
+# can call `update` on ? Better name than watchdog ?
 
 # example where we stop after 10 sec ? Can we make the handler do something
 # such as return a value ? Should we define a special exception for that that
