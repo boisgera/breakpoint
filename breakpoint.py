@@ -279,6 +279,12 @@ def counter2_with_helper(n):
 # What is the watchdog supposed to return as a value ? Something that we 
 # can call `update` on ? Better name than watchdog ?
 
+# Think of the clock / alarm metaphor. Drop the dt in the decorator, 
+# instead instante an alarm, set its dt, then iterate on the alarm (clock)
+# and test if it's triggered (atttribute), if this is the, case, you
+# need to yield and somehow to send the result to the alarm (update method ?)
+# That could be a nice and readable pattern actually ...
+
 # example where we stop after 10 sec ? Can we make the handler do something
 # such as return a value ? Should we define a special exception for that that
 # would encapsulate the early result ? PartialResult(result) ? Or play with the
