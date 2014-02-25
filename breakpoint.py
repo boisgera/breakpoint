@@ -284,6 +284,8 @@ def counter2_with_helper(n):
 # and test if it's triggered (atttribute), if this is the, case, you
 # need to yield and somehow to send the result to the alarm (update method ?)
 # That could be a nice and readable pattern actually ...
+# Actually, if we drop the dt in the decorator, most of the timing logic
+# would be transferred to alarm right ? Study that ...
 
 # example where we stop after 10 sec ? Can we make the handler do something
 # such as return a value ? Should we define a special exception for that that
