@@ -287,6 +287,41 @@ def counter2_with_helper(n):
 # Actually, if we drop the dt in the decorator, most of the timing logic
 # would be transferred to alarm right ? Study that ...
 
+# AAAAH. The pb with the alarm is that we would set the interrupt from
+# within the function while it should be done outside. Keep dt in the
+# decorator. Hmmm ... think of it more.
+
+# TODO: forget the float threshold, that's too smart, go with integers.
+#       this way, we can make sure that the threshold is never zero.
+
+class Alarm(object):
+    def __init__(self):
+        self.count = 0
+        self.threshold = 1
+        self.triggered = False
+    def __iter__(self):
+        return self
+    def next(self):
+        self.count += 1
+        self.triggered = (self.count >= self.threshold)
+    def update(self, multiplier):
+        self.count = 0
+        if multiplier is not None:
+            self.threshold = max(1, int(multiplier * self.threshold))
+
+@breakpoint(handler=printer, dt=dt)
+def counter2_alarm(n):
+    result = 0
+    alarm = Alarm()
+    for result in range(n):
+        alarm.next()
+        if alarm.triggered:
+            progress = result / n
+            alarm.update((yield progress, result))
+        time.sleep(0.1); result = result + 1
+        watchdog.next()
+    yield 1.0, result
+
 # example where we stop after 10 sec ? Can we make the handler do something
 # such as return a value ? Should we define a special exception for that that
 # would encapsulate the early result ? PartialResult(result) ? Or play with the
