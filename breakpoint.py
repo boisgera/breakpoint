@@ -307,9 +307,10 @@ class Alarm(object):
     def update(self, multiplier):
         self.count = 0
         if multiplier is not None:
-            self.threshold = max(1, int(multiplier * self.threshold))
+            self.threshold = int(round(multiplier * self.threshold))
+            self.threshold = max(1, self.threshold)
 
-@breakpoint(handler=printer, dt=dt)
+@breakpoint(handler=printer, dt=1.0)
 def counter2_alarm(n):
     result = 0
     alarm = Alarm()
@@ -319,7 +320,6 @@ def counter2_alarm(n):
             progress = result / n
             alarm.update((yield progress, result))
         time.sleep(0.1); result = result + 1
-        watchdog.next()
     yield 1.0, result
 
 # example where we stop after 10 sec ? Can we make the handler do something
