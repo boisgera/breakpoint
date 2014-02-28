@@ -1,0 +1,26 @@
+html {
+  font-family: Lato;
+  padding: 0px;
+  margin: 0px;
+}
+
+html body {
+  margin: 0px;
+}
+
+header {
+  font-family: Exo;
+  text-align: center;
+  background: #ffcc00;
+  font-size: 36px;
+  font-weight: 200;
+  padding: 15%;
+}
+
+header h1 {
+  font-family: Exo;
+  font-weight: 700;
+  margin: 0px;
+}
+
+
