@@ -286,6 +286,7 @@ def counter2_with_helper(n):
 # That could be a nice and readable pattern actually ...
 # Actually, if we drop the dt in the decorator, most of the timing logic
 # would be transferred to alarm right ? Study that ...
+# UPDATE: return the triggered status by next(), that's so much simpler.
 
 # AAAAH. The pb with the alarm is that we would set the interrupt from
 # within the function while it should be done outside. Keep dt in the
@@ -298,12 +299,11 @@ class Alarm(object):
     def __init__(self):
         self.count = 0
         self.threshold = 1
-        self.triggered = False
     def __iter__(self):
         return self
     def next(self):
         self.count += 1
-        self.triggered = (self.count >= self.threshold)
+        return (self.count >= self.threshold)
     def update(self, multiplier):
         self.count = 0
         if multiplier is not None:
@@ -315,8 +315,7 @@ def counter2_alarm(n):
     result = 0
     alarm = Alarm()
     for result in range(n):
-        alarm.next()
-        if alarm.triggered:
+        if alarm.next():
             progress = result / n
             alarm.update((yield progress, result))
         time.sleep(0.1); result = result + 1
