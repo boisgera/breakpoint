@@ -3,7 +3,12 @@
   <head>
     <link href="http://fonts.googleapis.com/css?family=Exo:100,200,300,400,500,600,700,800,900,100italic,200italic,300italic,400italic,500italic,600italic,700italic,800italic,900italic" rel="stylesheet" type="text/css">
     <link href="http://fonts.googleapis.com/css?family=Lato:100,300,400,700,900,100italic,300italic,400italic,700italic,900italic' rel="stylesheet" type="text/css">
+    <link href='http://fonts.googleapis.com/css?family=Inconsolata:400,700' rel='stylesheet' type='text/css'>
     <link href="http://netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="http://yandex.st/highlightjs/8.0/styles/default.min.css">
+    <link href="css/mono-blue.css" rel="stylesheet" type="text/css">
+    <script src="http://yandex.st/highlightjs/8.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
     <link href="css/style.css" rel="stylesheet" type="text/css">
   </head>
 
@@ -12,8 +17,26 @@
     <header>
       <h1>BREAKPOINT</h1>
       <p>Coming soon ...</p>
-      <!-- <i class="fa fa-circle" id="bullet"></i> -->
     </header>
+    <section>
+      <pre><code>def counter(n):
+    result = 0
+    for _ in range(n):
+        time.sleep(0.1); result = result + 1
+    return result
+      </code></pre>
+      <pre><code>@breakpoint(handler=printer, dt=1.0)
+def counter(n):
+    result = 0
+    alarm = Alarm()
+    for _ in range(n):
+        if alarm.next():
+            progress = result / n
+            alarm.update((yield progress, result))
+        time.sleep(0.1); result = result + 1
+    yield 1.0, result
+      </code></pre>
+    </section>
 
   
 

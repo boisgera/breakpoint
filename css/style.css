@@ -1,6 +1,6 @@
 
 html {
-  font-family: Lato;
+  font-family: Lato, sans-serif;
   margin: 0px;
   padding: 0px;
 }
@@ -11,7 +11,7 @@ html body {
 }
 
 header {
-  font-family: Exo;
+  font-family: Exo, sans-serif;
   font-size: 36px;
   font-weight: 200;
   text-align: center;
@@ -35,15 +35,24 @@ header p {
   width: auto;
 }
 
-/*
-header #bullet {
-  font-size: 36px;
+section {
+  margin: 0px;
+  padding: 5% 15%;
 }
 
-header:hover #bullet {
-  transition: 2s;
-  font-size: 144px;
-*/
+pre {
+  padding: 0px;
+}
+
+pre code {
+  display: block;
+  margin: 0px auto;
+}
+
+code {
+  font-family: Inconsolata, sans-serif;
+  font-size: 18px;
+}
 
 }
 
