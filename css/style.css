@@ -1,4 +1,21 @@
 
+@font-face {
+  font-family: "Linux Biolinum";
+  src: url("../fonts/LinBiolinum_R.otf");
+}
+
+@font-face {
+  font-family: "Linux Biolinum";
+  src: url("../fonts/LinBiolinum_RB.otf");
+  font-weight: bold;
+}
+
+@font-face {
+  font-family: "Linux Biolinum";
+  src: url("../fonts/LinBiolinum_RI.otf");
+  font-style: italic;
+}
+
 header {
   font-family: Exo, sans-serif;
   font-size: 36px;
@@ -25,8 +42,8 @@ header p {
 }
 
 body {
-  font-family: "Roboto", sans-serif;
-  font-size: 18px;
+  font-family: "Linux Biolinum", sans-serif;
+  font-size: 20px; /* instead of 18 px ... Biolinum boost !*/
   margin: 0px;
   padding: 0px;
 }
@@ -63,7 +80,7 @@ pre code {
 
 code {
   font-family: Inconsolata, sans-serif;
-  font-size: 1em;
+  font-size: 18px;
 }
 
 }
