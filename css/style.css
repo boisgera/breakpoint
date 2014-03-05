@@ -43,7 +43,8 @@ header p {
 
 body {
   font-family: "Linux Biolinum", sans-serif;
-  font-size: 20px; /* instead of 18 px ... Biolinum boost !*/
+  font-size: 20px; /* that would be 18 px normally but Biolinum is small.*/
+  text-align: justify;
   margin: 0px;
   padding: 0px;
 }
@@ -56,6 +57,7 @@ section {
 }
 
 section h1 {
+   font-size: 1.8em;
 }
 
 .content {
@@ -64,12 +66,17 @@ section h1 {
 }
 
 section p {
-    margin: 0px auto 1em;
-    max-width: 960px;
+  margin: 0px auto 1em;
+  max-width: 960px;
 }
 
 pre {
   padding: 0px;
+}
+
+code {
+  font-family: Inconsolata, sans-serif;
+  font-size: 0.9em;
 }
 
 pre code {
@@ -78,10 +85,7 @@ pre code {
   margin: 0px auto; /* Uhu ? no impact ? */
 }
 
-code {
-  font-family: Inconsolata, sans-serif;
-  font-size: 18px;
-}
+
 
 }
 
