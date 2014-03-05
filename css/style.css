@@ -1,15 +1,4 @@
 
-html {
-  font-family: Lato, sans-serif;
-  margin: 0px;
-  padding: 0px;
-}
-
-html body {
-  margin: 0px;
-  padding: 0px;
-}
-
 header {
   font-family: Exo, sans-serif;
   font-size: 36px;
@@ -22,7 +11,7 @@ header {
 }
 
 header h1 {
-  font-size: 72px;
+  font-size: 2em;
   font-weight: bold;
   margin: 0px;
   padding: 0px;
@@ -35,9 +24,31 @@ header p {
   width: auto;
 }
 
+body {
+  font-family: "Roboto", sans-serif;
+  font-size: 18px;
+  margin: 0px;
+  padding: 0px;
+}
+
 section {
   margin: 0px;
-  padding: 5% 15%;
+  padding: 0px 0px;
+  /*padding: 5% 15%;*/
+  /*max-width: 960px;*/
+}
+
+section h1 {
+}
+
+.content {
+  margin: 0px auto;
+  max-width: 960px;
+}
+
+section p {
+    margin: 0px auto 1em;
+    max-width: 960px;
 }
 
 pre {
@@ -46,12 +57,13 @@ pre {
 
 pre code {
   display: block;
-  margin: 0px auto;
+  width: 840px;
+  margin: 0px auto; /* Uhu ? no impact ? */
 }
 
 code {
   font-family: Inconsolata, sans-serif;
-  font-size: 18px;
+  font-size: 1em;
 }
 
 }
