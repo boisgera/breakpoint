@@ -14,16 +14,22 @@ Using Generator to Break Long-Running Functions
 
 Basic operation:
 
-    result = result + 1; time.sleep(0.1)
+    result = compute(result)
 
-That's our simulation of atomic computation. Long-running operations are
+Encapsulate instead and call the function ?
+
+    def compute(value):
+        time.sleep(0.1)
+        return value + 1
+
+That's our simulation of compute computation. Long-running operations are
 sequences of such operations.
 
     def count_to_three():
         result = 0
-        result = result + 1; time.sleep(0.1)
-        result = result + 1; time.sleep(0.1)
-        result = result + 1; time.sleep(0.1)
+        result = compute(result)
+        result = compute(result)
+        result = compute(result)
         return result
 
 Using it:
@@ -42,11 +48,11 @@ Generator version (minimal):
     def count_to_three():
         result = 0
         yield
-        result = result + 1; time.sleep(0.1)
+        result = compute(result)
         yield
-        result = result + 1; time.sleep(0.1)
+        result = compute(result)
         yield
-        result = result + 1; time.sleep(0.1)
+        result = compute(result)
         yield None, result
 
 Using it:
@@ -64,11 +70,11 @@ Generator version: progress and partial result
     def count_to_three():
         result = 0
         yield 0 / 3, result
-        result = result + 1; time.sleep(0.1)
+        result = compute(result)
         yield 1 / 3, result
-        result = result + 1; time.sleep(0.1)
+        result = compute(result)
         yield 2 / 3, result
-        result = result + 1; time.sleep(0.1)
+        result = compute(result)
         yield 3 / 3, result
 
 generator version with progress and partial result: explain 3 ops,
@@ -96,7 +102,7 @@ Loop version, explicit progress, partial result
     def count_to(n):
         result = 0
         for i in range(n):
-            result = result + 1; time.sleep(0.1)
+            result = compute(result)
         return result
 
 Using it:
@@ -109,7 +115,7 @@ Using it:
         for i in range(n):
             progress = i / n
             yield progress, result 
-            result = result + 1; time.sleep(0.1)
+            result = compute(result)
         return result
 
 
@@ -125,7 +131,7 @@ Restore the original function behavior from the generator:
         for i in range(n):
             progress = i / n
             yield progress, result 
-            result = result + 1; time.sleep(0.1)
+            result = compute(result)
         return result
 
 Using it:
@@ -133,8 +139,71 @@ Using it:
     >>> count_to(3)
     3
 
-So why the hell did we tweak the original function ?
+So why the hell did we tweak the original function ? Because we
+have new options now such as: because now we can track the evolution
+of the computation. For example, display partial results:
+
+    def partial():
+        def handler(**kwargs):
+            print kwargs.get("progress"), kwargs.get("result")
+        return handler
+
+Decorate `count_to` like this:
+
+    @breakpoint(handler=partial)
+    def count_to(n):
+        result = 0
+        for i in range(n):
+            progress = i / n
+            yield progress, result 
+            result = compute(result)
+        return result
+
+Use it like this:
+
+    >>> count_to(3)
+    (0.0, 0)
+    (0.3333333333333333, 1)
+    (0.6666666666666666, 2)
+    (1.0, 3)
+    3
+
+Available information for the handler: includes what you returned in the yield, 
+that is `progress`, `result`. There is more, so make sure to use `**kwargs`.
+
+Explain handler factory (closure): every time your run, a new instance of the 
+handler is generated. For example:
+
+    def partial():
+       start = True
+       def handler(**kwargs):
+           nonlocal start
+           if start:
+               print "first handler call"
+               start = False
+           print kwargs.get("progress"), kwargs.get("result")
+       return handler
+
+Alternate implementation (class-based):
+
+   class partial(object):
+       def __init__(self):
+           self.start = True
+       def __call__(self, **kwargs):
+           if self.start:
+               print "first handler call"
+               self.start = False
+           print kwargs.get("progress"), kwargs.get("result")
 
 
 
+
+
+
+Time Target
+--------------------------------------------------------------------------------
+
+New assumption if you use `dt`: you call `yield` at regular frequency.
+
+Explain `elapsed` and `result`.
 
