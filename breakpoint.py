@@ -110,8 +110,10 @@ __version__ = "2.0.0"
 # more complex computations that we do ? That may be overkill for
 # now ...
 
+# rename `handler` as `on_yield` ? `on_break` ? Is it readable when
+# we DON'T use the argument name at all ?
 
-def breakpoint(dt=None, handler=None):
+def breakpoint(handler=None, dt=None):
     """
     Breakpoint decorator
 

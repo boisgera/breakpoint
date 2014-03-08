@@ -123,7 +123,7 @@ Breakpoint Decorator
 --------------------------------------------------------------------------------
 
 
-Restore the original function behavior from the generator:
+Restore the original function behavior (reverse the split) from the generator:
 
     @breakpoint()
     def count_to(n):
@@ -150,7 +150,7 @@ of the computation. For example, display partial results:
 
 Decorate `count_to` like this:
 
-    @breakpoint(handler=partial)
+    @breakpoint(partial)
     def count_to(n):
         result = 0
         for i in range(n):
@@ -202,6 +202,14 @@ Alternate implementation (class-based):
 
 Time Target
 --------------------------------------------------------------------------------
+
+Explain that you can always track the elapsed time: demo
+
+Then the remaining time would be nice too ! We can estimate it if
+you gave some progress information.
+
+Now, the issue is that you may be calling the breakpoint handler too
+frequently or to little. How to cope with that ?
 
 New assumption if you use `dt`: you call `yield` at regular frequency.
 
