@@ -99,6 +99,12 @@ __version__ = "2.0.0"
 # Can this policy be used on **methods** ?
 #
 # TODO: custom timer (for tests for example ?)
+#
+# Q: should we call the handler a last time when it's over with
+#    a special flag ?
+#
+# Ability to "tune" the breakpoint parameters after the wrapping ?
+#
 
 
 def breakpoint(dt=None, handler=None):
