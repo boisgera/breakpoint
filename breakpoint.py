@@ -105,6 +105,10 @@ __version__ = "2.0.0"
 #
 # Ability to "tune" the breakpoint parameters after the wrapping ?
 #
+# Should we memorize all yield times and the starting point ?
+# And communicate all this to the handler so that it can perform
+# more complex computations that we do ? That may be overkill for
+# now ...
 
 
 def breakpoint(dt=None, handler=None):
