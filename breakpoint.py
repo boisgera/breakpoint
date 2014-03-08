@@ -114,7 +114,7 @@ def breakpoint(dt=None, handler=None):
 
       - `handler` is an optional function factory that is called at each step.
         The signature of the function that is created by `handler_ = handler()` 
-        shall be (with positional arguments):
+        shall be (it is invoked with keyword arguments):
 
             def handler_(progress, elapsed, remaining, result)
     """
@@ -162,7 +162,10 @@ def breakpoint(dt=None, handler=None):
                                 rt = float("nan")
                     if handler_ is not None:
             # TODO: change the "positional arguments" policy ? Actually it sucks.
-                        handler_(progress, t-t0, rt, result)
+                        handler_(progress=progress, 
+                                 elapsed=t-t0, 
+                                 remaining=rt, 
+                                 result=result)
                 except StopIteration:
                     return result
         return broken_
@@ -219,7 +222,7 @@ def timeout(time, abort=True, asap=False):
 
 # This is ugly.
 def printer():
-    def _printer(*args):
+    def _printer(**kwargs):
         print args
     return _printer
 
