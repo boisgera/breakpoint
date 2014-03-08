@@ -186,14 +186,14 @@ handler is generated. For example:
 
 Alternate implementation (class-based):
 
-   class partial(object):
-       def __init__(self):
-           self.start = True
-       def __call__(self, **kwargs):
-           if self.start:
-               print "first handler call"
-               self.start = False
-           print kwargs.get("progress"), kwargs.get("result")
+    class partial(object):
+        def __init__(self):
+            self.start = True
+        def __call__(self, **kwargs):
+            if self.start:
+                print "first handler call"
+                self.start = False
+            print kwargs.get("progress"), kwargs.get("result")
 
 
 
