@@ -98,6 +98,8 @@ __version__ = "2.0.0"
 #
 # Can this policy be used on **methods** ?
 #
+# TODO: custom timer (for tests for example ?)
+
 
 def breakpoint(dt=None, handler=None):
     """
@@ -126,6 +128,12 @@ def breakpoint(dt=None, handler=None):
             handler_ = None
 
         def broken_(*args, **kwargs):
+            # define t0 as the function call time ? Or the first
+            # yield ? MMMmm we are conflating to concepts here,
+            # both values are useful. if ty is the first yield time,
+            # t - t0 is the elapsed time but the remaining time should
+            # be computed with ty (or not: more general formula that
+            # forget the old values could be implemented too).
             generator = function(*args, **kwargs)
             t0 = t = None
             multiplier = None
