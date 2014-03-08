@@ -139,7 +139,11 @@ def breakpoint(dt=None, handler=None):
             multiplier = None
             while True:
                 try:
-                    progress, result = generator.send(multiplier)
+                    info = generator.send(multiplier)
+                    if info is None:
+                        progress, result = None, None
+                    else:
+                        progress, result = info
                     if t0 is None: # first yield
                         t0 = t = time.time()
                         progress = 0.0
@@ -161,7 +165,6 @@ def breakpoint(dt=None, handler=None):
                             else:
                                 rt = float("nan")
                     if handler_ is not None:
-            # TODO: change the "positional arguments" policy ? Actually it sucks.
                         handler_(progress=progress, 
                                  elapsed=t-t0, 
                                  remaining=rt, 
