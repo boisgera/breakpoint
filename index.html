@@ -34,7 +34,6 @@
       <p>Coming soon ...</p>
     </header>
 
- 
 <section class="content">
 <h2 id="preamble">Preamble</h2>
 <pre><code>from __future__ import division</code></pre>
@@ -231,8 +230,10 @@ def fibionacci(n):
 <h4 id="root-finding">Root Finding</h4>
 <p>Example on how to deal with numerical precision.</p>
 <p><strong>TODO: example with gradient algorithm that does not progress anymore ? Search the solution of <code>x**2 - 2 = 0</code> ?</strong> Rk: we could also use progress here ... Compare the two schemes ? The &quot;not-progress&quot; stuff externalizes more of the code ... wheter this is good or bad is yet to be seen. Rk: progress SHOULD be a linear measure of time, the algorithm complexity should be taken into account if we want the time measurements to be stable.</p>
-<p><br /><span class="math"><em>f</em>(<em>x</em>) = <em>x</em><sup>2</sup> − 2. 0</span><br /></p>
-<p>We have <span class="math"><em>f</em>ʹ(<em>x</em>) = 2<em>x</em></span> ... describe Newton's algorithm.</p>
+<p><span class="math">\[
+f(x) = x^2 - 2.0
+\]</span></p>
+<p>We have <span class="math">\(f&#39;(x) = 2x\)</span> ... describe Newton's algorithm.</p>
 <pre><code>def generator():
     x0 = 2.0
     while True:
@@ -276,6 +277,6 @@ def max_yields(n):
                 raise AbortException(**kwargs)
         return handler
     return handler_factory</code></pre>
-</section>
+</section> 
 
 </body></html>
