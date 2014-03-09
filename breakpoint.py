@@ -18,7 +18,7 @@ pass
 __author__ = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
 __license__ = "MIT License"
 __url__ = "https://github.com/boisgera/breakpoint" 
-__version__ = "2.0.0"
+__version__ = "2.0.2"
 
 #
 # Misc. Notes
@@ -157,9 +157,9 @@ def breakpoint(handler=None, dt=None):
                         progress, result = None, None
                     else:
                         progress, result = info
+
                     if t0 is None: # first yield
                         t0 = t = time.time()
-                        progress = 0.0
                         rt = float("nan")
                     else:
                         t_ = time.time()
@@ -170,13 +170,16 @@ def breakpoint(handler=None, dt=None):
                                 multiplier = dt / dt_
                             except ZeroDivisionError:
                                 multiplier = float("inf")
-                        try:
-                            rt = (1.0 - progress) / progress * (t - t0)
-                        except ZeroDivisionError:
-                            if progress < 1.0:
-                                rt = float("inf")
-                            else:
-                                rt = float("nan")
+                        if progress is None:
+                            rt = float("nan")
+                        else:
+                            try:
+                                rt = (1.0 - progress) / progress * (t - t0)
+                            except ZeroDivisionError:
+                                if progress < 1.0:
+                                    rt = float("inf")
+                                else:
+                                    rt = float("nan")
                     if handler_ is not None:
                         handler_result = handler_(progress=progress, 
                                                   elapsed=t-t0, 
