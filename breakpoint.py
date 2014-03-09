@@ -116,6 +116,8 @@ __version__ = "2.0.2"
 # Q: make handler mandatory ?
 
 # TODO: add a "no_progress" parameter to break point ? That would be handy.
+#       or explicit progress=True ? Which one is the best ? Probably the
+#       latter.
 
 def breakpoint(handler=None, dt=None):
     """
