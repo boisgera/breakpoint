@@ -7,7 +7,7 @@ Preamble
 --------------------------------------------------------------------------------
 
     from __future__ import division
-    import time
+
 
 Using Generator to Break Long-Running Functions
 --------------------------------------------------------------------------------
@@ -17,6 +17,8 @@ Basic operation:
     result = compute(result)
 
 Encapsulate instead and call the function ?
+
+    import time
 
     def compute(value):
         time.sleep(0.1)
@@ -46,6 +48,8 @@ that is going to get explained shortly.
 Generator version (minimal): **Is the support for the bare `yield`
 interesting of misleading ?** Present something that COULD NOT be
 wrapped with breakpoint, but that lays down the main idea.
+*N.B.:* with the future `progress` argument of breakpoint, it 
+actually *is* valid code to be wrapped.
 
     def count_to_three():
         result = 0
