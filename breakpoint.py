@@ -115,6 +115,8 @@ __version__ = "2.0.2"
 
 # Q: make handler mandatory ?
 
+# TODO: add a "no_progress" parameter to break point ? That would be handy.
+
 def breakpoint(handler=None, dt=None):
     """
     Breakpoint decorator

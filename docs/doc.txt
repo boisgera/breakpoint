@@ -151,7 +151,7 @@ of the computation. For example, display partial results:
 
     def partial():
         def handler(**kwargs):
-            print kwargs.get("progress"), kwargs.get("result")
+            print kwargs["progress"], kwargs["result"]
         return handler
 
 Decorate `count_to` like this:
@@ -187,7 +187,7 @@ handler is generated. For example:
            if start:
                print "first handler call"
                start = False
-           print kwargs.get("progress"), kwargs.get("result")
+           print kwargs["progress"], kwargs["result"]
        return handler
 
 Alternate implementation (class-based):
@@ -199,7 +199,7 @@ Alternate implementation (class-based):
             if self.start:
                 print "first handler call"
                 self.start = False
-            print kwargs.get("progress"), kwargs.get("result")
+            print kwargs["progress"], kwargs.get["result"]
 
 
 
@@ -222,19 +222,126 @@ New assumption if you use `dt`: you call `yield` at regular frequency.
 Explain `elapsed` and `result`.
 
 
-Handlers
+Advanced Handlers
 --------------------------------------------------------------------------------
 
-### Good Enough, Thank you
+### Good Enough, Thank you: Partial Results
 
-(rk: in this scheme, we don't know that the early stop was triggered. 
-     Better scheme for a precision tracker or that kind of things, 
-     an AbortException may be better if we want to be signaled with 
-     the early stop).
+When it's convienent to externalize stop conditions. But .... is it not what
+progress is for ? Can't we just simply STOP when progress is met or overreached ?
+Probably ! Compare the current schemes that do not use progress and the one that
+do ... progress is probably simpler ...
 
-**Grmph.** Are `raise StopIteration()` and `return result` too ways to do
-the same thing ? With the latter being more flexible ? Then we should 
-probably NOT present the `StopIteration` scheme ?
+#### Fibionacci Sequence
+
+Fibionacci generator:
+
+
+    def generator():
+        a, b = 0, 1
+        while True:
+            yield None, a
+            a, b = b, a + b
+
+Use it like that:
+
+    ... 
+
+Modify it to return the list of computed values and the progress.
+
+    def fib_generator(n):
+        a, b = 0, 1
+        results = []
+        while True:
+            results.append(a)
+            progress = a / n
+            yield progress, results
+            a, b = b, a + b
+
+then use the simpler handler that makes sure that you do not overshoot your
+target
+
+    def track_progress():
+        def handler(progress, result, **extra):
+            if progress > 1.0:
+                return result[:-1]
+        return handler
+
+    def fibionacci(n):
+        function = breakpoint(track_progress)(lambda: fib_generator(n))
+        return function()
+
+
+But you may actually be willing to keep the original, simple and clean,
+version of the fibionacci generator (hey, maybe you cannot change that code !) 
+and externalize the termination condition. It's actually possible!
+
+    def fib_generator():
+        a, b = 0, 1
+        while True:
+            yield None, a
+            a, b = b, a + b
+
+    def max_result(n):
+        def handler_factory():
+            results = []
+            def handler(**kwargs):
+                number = kwargs["result"]
+                if number > n:
+                    return results
+                results.append(number)
+            return handler
+        return handler_factory
+
+    def fibionacci(n):
+        function = breakpoint(max_result(n))(fib_generator)
+        return function()
+
+#### Root Finding
+
+Example on how to deal with numerical precision.
+
+**TODO: example with gradient algorithm that does not progress anymore ? Search
+the solution of `x**2 - 2 = 0` ?** Rk: we could also use progress here ...
+Compare the two schemes ? The "not-progress" stuff externalizes more of the
+code ... wheter this is good or bad is yet to be seen. Rk: progress SHOULD be
+a linear measure of time, the algorithm complexity should be taken into
+account if we want the time measurements to be stable.
+
+$$
+f(x) = x^2 - 2.0
+$$
+
+We have $f'(x) = 2x$ ... describe Newton's algorithm.
+
+    def generator():
+        x0 = 2.0
+        while True:
+            yield None, x0
+            x0 = x0 - 0.5 * (x0 - 2.0 / x0)
+
+    def min_step(eps):
+        def handler_factory():
+            x = [None]
+            def handler(**kwargs):
+                x0, x1 = x[0], kwargs["result"]
+                if x0 is not None:
+                    step = abs(x1 - x0)
+                    if step < eps:
+                        return x1
+                x[0] = x1
+            return handler
+        return handler_factory
+
+    def find_root(eps=1e-15):
+        function = breakpoint(handler=min_step(eps))(generator)
+        return function()
+
+**TODO:** add a failure time ? Add a management of convergenve to the NEGATIVE
+solution ?
+
+
+-----
 
 ### This takes too much time ...
 
@@ -243,7 +350,7 @@ Handler Factories:
     def max_wait(seconds):
         def handler_factory():
             def handler(**kwargs):
-                remaining = kwargs.get("remaining")
+                remaining = kwargs["remaining"]
                 if remaining > seconds:
                     raise AbortException(**kwargs)
         return handler_factory
