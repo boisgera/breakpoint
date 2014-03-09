@@ -43,7 +43,9 @@ ambiguity ? Unfortunately, no, we would need an extra option in the
 decorator and it's not worth it. State that it's a convention we use 
 that is going to get explained shortly.
 
-Generator version (minimal):
+Generator version (minimal): **Is the support for the bare `yield`
+interesting of misleading ?** Present something that COULD NOT be
+wrapped with breakpoint, but that lays down the main idea.
 
     def count_to_three():
         result = 0
@@ -53,7 +55,7 @@ Generator version (minimal):
         result = compute(result)
         yield
         result = compute(result)
-        yield None, result
+        yield result
 
 Using it:
 
@@ -62,8 +64,10 @@ Using it:
     >>> counter.next()
     >>> counter.next()
     >>> counter.next()
-    None, 3
+    3
 
+Version not very useful: we have split the info, but no criteria to actually
+do something useful in the steps. Hence progress and partial result.
 
 Generator version: progress and partial result
 
@@ -119,11 +123,13 @@ Using it:
         return result
 
 
-Breakpoint Decorator
+Breakpoint Decorators and Handlers
 --------------------------------------------------------------------------------
 
 
 Restore the original function behavior (reverse the split) from the generator:
+
+**Question:** rename `breakpoint` decorator `function` ?
 
     @breakpoint()
     def count_to(n):
@@ -177,7 +183,7 @@ handler is generated. For example:
     def partial():
        start = True
        def handler(**kwargs):
-           nonlocal start
+           nonlocal start # not in Python 2.7 !
            if start:
                print "first handler call"
                start = False
@@ -214,4 +220,44 @@ frequently or to little. How to cope with that ?
 New assumption if you use `dt`: you call `yield` at regular frequency.
 
 Explain `elapsed` and `result`.
+
+
+Handlers
+--------------------------------------------------------------------------------
+
+### Good Enough, Thank you
+
+(rk: in this scheme, we don't know that the early stop was triggered. 
+     Better scheme for a precision tracker or that kind of things, 
+     an AbortException may be better if we want to be signaled with 
+     the early stop).
+
+**Grmph.** Are `raise StopIteration()` and `return result` too ways to do
+the same thing ? With the latter being more flexible ? Then we should 
+probably NOT present the `StopIteration` scheme ?
+
+### This takes too much time ...
+
+Handler Factories:
+
+    def max_wait(seconds):
+        def handler_factory():
+            def handler(**kwargs):
+                remaining = kwargs.get("remaining")
+                if remaining > seconds:
+                    raise AbortException(**kwargs)
+        return handler_factory
+
+    def max_yields(n):
+        def handler_factory():
+            yields = [0]
+            def handler(**kwargs):
+                yields[0] += 1
+                if yields[0] > n:
+                    raise AbortException(**kwargs)
+            return handler
+        return handler_factory
+
+
+
 

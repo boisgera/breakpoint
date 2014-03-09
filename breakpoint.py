@@ -8,6 +8,9 @@ Progress Tracker
 from __future__ import division
 import time
 
+# Third-Party Libraries
+pass
+
 #
 # Metadata
 # ------------------------------------------------------------------------------
@@ -24,12 +27,6 @@ __version__ = "2.0.0"
 #
 # Use partial result if any ? Demonstrate how a handler may decide to stop
 # the iteration if it takes too long ?
-#
-# Demonstrate how to migrate an example to breakpoint, without breakpoint
-# frequency control, then with it. Use a fibionnaci sequence example ?
-#
-# Show that the progress stuff is optional ? convention that None should be
-# return when you have no idea what the outcome is.
 #
 # Use iterators/generators instead of threads ? The values obtained are
 # progress < 1.0 until we obtain 1.0, then the last value is the result ?
@@ -95,6 +92,9 @@ __version__ = "2.0.0"
 # can access its attribute without any problem. See if that policy
 # sticks ... Get rid of static / non-configurable decorator 
 # arguments altogether ? Or keep them as a shortcut ?
+# Can we change the handler / dt, afterwards ? Uhu that's tricky,
+# we're talking handler factorries remember ?
+
 #
 # Can this policy be used on **methods** ?
 #
@@ -113,33 +113,34 @@ __version__ = "2.0.0"
 # rename `handler` as `on_yield` ? `on_break` ? Is it readable when
 # we DON'T use the argument name at all ?
 
+# Q: make handler mandatory ?
+
 def breakpoint(handler=None, dt=None):
     """
     Breakpoint decorator
 
     Arguments:
 
-      - `dt` is the target time between two successive generator yields. 
-        The generator that is decorated is sent at each new stage a number
-        that is a prescribed yield period multiplier, or `None` if no
-        estimate is available.
-
       - `handler` is an optional function factory that is called at each step.
         The signature of the function that is created by `handler_ = handler()` 
         shall be (it is invoked with keyword arguments):
 
             def handler_(progress, elapsed, remaining, result)
+
+      - `dt` is the target time between two successive generator yields. 
+        The generator that is decorated is sent at each new stage a number
+        that is a prescribed yield period multiplier, or `None` if no
+        estimate is available.
     """
     if dt == 0.0:
         raise ValueError("dt=0.0 is invalid, it shall be positive (or None).")
 
     def broken(function):
-        if handler is not None:
-            handler_ = handler()
-        else:
-            handler_ = None
-
         def broken_(*args, **kwargs):
+            if handler is not None:
+                handler_ = handler()
+            else:
+                handler_ = None
             # define t0 as the function call time ? Or the first
             # yield ? MMMmm we are conflating to concepts here,
             # both values are useful. if ty is the first yield time,
@@ -177,10 +178,12 @@ def breakpoint(handler=None, dt=None):
                             else:
                                 rt = float("nan")
                     if handler_ is not None:
-                        handler_(progress=progress, 
-                                 elapsed=t-t0, 
-                                 remaining=rt, 
-                                 result=result)
+                        handler_result = handler_(progress=progress, 
+                                                  elapsed=t-t0, 
+                                                  remaining=rt, 
+                                                  result=result)
+                        if handler_result is not None:
+                            return handler_result
                 except StopIteration:
                     return result
         return broken_
@@ -196,16 +199,29 @@ def breakpoint(handler=None, dt=None):
 #   - printers (elapsed time mostly),
 #   - "gimme what you got" (with exception of with return of the early result),
 #   - "don't bother" (remaining time too long after the first few samples).
+#
+# Could all these use case be handled at the handler level, without the need
+# for an extra decorator ? Early stop (or "good enough") is easy, just raise
+# StopIteration from the handler. Demonstrate that !
+
 
 # go to the end (real timeout) or abort asap (estimated timeout) ?
 
+# Just make AbortException more generic ? Embeds a single datum, and
+# the breakpoint decorator just unpacks it ? Mmmm. Nah AbortException
+# should propagate, but we may use a PartialResult instead. Oh well,
+# even this level of wrapping is probably MOSTLY useless and best 
+# delegated to the user: we could return any non-None value returned
+# by a handler. If `None` is a value that could have been returned
+# from the original function, then the user needs some wrapping.
+# Grmph. Do we handle that ? Can we help without making a mess of the
+# usual case when it's not needed ? Just by the definition of a 
+# `NONE` singleton for example with a special handling in the decorator ?
+# Dunno. YAGNI for now.
+
 class AbortException(Exception):
-    def __init__(self, progress, elapsed, remaining, result):
-        self.progress  = progress
-        self.elapsed   = elapsed
-        self.remaining = remaining
-        self.result    = result
-        self.args = (progress, elapsed, remaining, result)
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
 
 def timeout(time, abort=True, asap=False):
     def handler_factory():
