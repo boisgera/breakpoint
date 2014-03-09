@@ -55,5 +55,247 @@ def counter(n):
     </div></section>
 
   
+<section class="content">
+<h2 id="preamble">Preamble</h2>
+<pre><code>from __future__ import division</code></pre>
+<h2 id="using-generator-to-break-long-running-functions">Using Generator to Break Long-Running Functions</h2>
+<p>Basic operation:</p>
+<pre><code>result = compute(result)</code></pre>
+<p>Encapsulate instead and call the function ?</p>
+<pre><code>import time
+
+def compute(value):
+    time.sleep(0.1)
+    return value + 1</code></pre>
+<p>That's our simulation of compute computation. Long-running operations are sequences of such operations.</p>
+<pre><code>def count_to_three():
+    result = 0
+    result = compute(result)
+    result = compute(result)
+    result = compute(result)
+    return result</code></pre>
+<p>Using it:</p>
+<pre><code>&gt;&gt;&gt; count_to_three():
+3</code></pre>
+<p>Intermediate version ? With <code>yield</code> and <code>yield None, result</code> at the end ? That seems artificial (the end), could we accept <code>yield result</code> without ambiguity ? Unfortunately, no, we would need an extra option in the decorator and it's not worth it. State that it's a convention we use that is going to get explained shortly.</p>
+<p>Generator version (minimal): <strong>Is the support for the bare <code>yield</code> interesting of misleading ?</strong> Present something that COULD NOT be wrapped with breakpoint, but that lays down the main idea. <em>N.B.:</em> with the future <code>progress</code> argument of breakpoint, it actually <em>is</em> valid code to be wrapped.</p>
+<pre><code>def count_to_three():
+    result = 0
+    yield
+    result = compute(result)
+    yield
+    result = compute(result)
+    yield
+    result = compute(result)
+    yield result</code></pre>
+<p>Using it:</p>
+<pre><code>&gt;&gt;&gt; counter = count_to_three()
+&gt;&gt;&gt; counter.next()
+&gt;&gt;&gt; counter.next()
+&gt;&gt;&gt; counter.next()
+&gt;&gt;&gt; counter.next()
+3</code></pre>
+<p>Version not very useful: we have split the info, but no criteria to actually do something useful in the steps. Hence progress and partial result.</p>
+<p>Generator version: progress and partial result</p>
+<pre><code>def count_to_three():
+    result = 0
+    yield 0 / 3, result
+    result = compute(result)
+    yield 1 / 3, result
+    result = compute(result)
+    yield 2 / 3, result
+    result = compute(result)
+    yield 3 / 3, result</code></pre>
+<p>generator version with progress and partial result: explain 3 ops, hence progress computation. Explain partial result. Those two results are optional (replacable by None). If you don't care at all, <code>yield</code> (aka <code>yield None</code>) is OK too.</p>
+<p>State that progress is optional (<code>None</code> if you don't know)</p>
+<p>Using it:</p>
+<pre><code>&gt;&gt;&gt; counter = count_to_three()
+&gt;&gt;&gt; counter.next()
+(0.0, 0)
+&gt;&gt;&gt; counter.next()
+(0.3333333333333333, None)
+&gt;&gt;&gt; counter.next()
+(0.6666666666666666, None)
+&gt;&gt;&gt; counter.next()
+(1.0, None)</code></pre>
+<p>Loop version, explicit progress, partial result</p>
+<pre><code>def count_to(n):
+    result = 0
+    for i in range(n):
+        result = compute(result)
+    return result</code></pre>
+<p>Using it:</p>
+<pre><code>&gt;&gt;&gt; count_to(3)
+3
+
+def count_to(n):
+    result = 0
+    for i in range(n):
+        progress = i / n
+        yield progress, result 
+        result = compute(result)
+    return result</code></pre>
+<h2 id="breakpoint-decorators-and-handlers">Breakpoint Decorators and Handlers</h2>
+<p>Restore the original function behavior (reverse the split) from the generator:</p>
+<p><strong>Question:</strong> rename <code>breakpoint</code> decorator <code>function</code> ?</p>
+<pre><code>@breakpoint()
+def count_to(n):
+    result = 0
+    for i in range(n):
+        progress = i / n
+        yield progress, result 
+        result = compute(result)
+    return result</code></pre>
+<p>Using it:</p>
+<pre><code>&gt;&gt;&gt; count_to(3)
+3</code></pre>
+<p>So why the hell did we tweak the original function ? Because we have new options now such as: because now we can track the evolution of the computation. For example, display partial results:</p>
+<pre><code>def partial():
+    def handler(**kwargs):
+        print kwargs[&quot;progress&quot;], kwargs[&quot;result&quot;]
+    return handler</code></pre>
+<p>Decorate <code>count_to</code> like this:</p>
+<pre><code>@breakpoint(partial)
+def count_to(n):
+    result = 0
+    for i in range(n):
+        progress = i / n
+        yield progress, result 
+        result = compute(result)
+    return result</code></pre>
+<p>Use it like this:</p>
+<pre><code>&gt;&gt;&gt; count_to(3)
+(0.0, 0)
+(0.3333333333333333, 1)
+(0.6666666666666666, 2)
+(1.0, 3)
+3</code></pre>
+<p>Available information for the handler: includes what you returned in the yield, that is <code>progress</code>, <code>result</code>. There is more, so make sure to use <code>**kwargs</code>.</p>
+<p>Explain handler factory (closure): every time your run, a new instance of the handler is generated. For example:</p>
+<pre><code>def partial():
+   start = True
+   def handler(**kwargs):
+       nonlocal start # not in Python 2.7 !
+       if start:
+           print &quot;first handler call&quot;
+           start = False
+       print kwargs[&quot;progress&quot;], kwargs[&quot;result&quot;]
+   return handler</code></pre>
+<p>Alternate implementation (class-based):</p>
+<pre><code>class partial(object):
+    def __init__(self):
+        self.start = True
+    def __call__(self, **kwargs):
+        if self.start:
+            print &quot;first handler call&quot;
+            self.start = False
+        print kwargs[&quot;progress&quot;], kwargs.get[&quot;result&quot;]</code></pre>
+<h2 id="time-target">Time Target</h2>
+<p>Explain that you can always track the elapsed time: demo</p>
+<p>Then the remaining time would be nice too ! We can estimate it if you gave some progress information.</p>
+<p>Now, the issue is that you may be calling the breakpoint handler too frequently or to little. How to cope with that ?</p>
+<p>New assumption if you use <code>dt</code>: you call <code>yield</code> at regular frequency.</p>
+<p>Explain <code>elapsed</code> and <code>result</code>.</p>
+<h2 id="advanced-handlers">Advanced Handlers</h2>
+<h3 id="good-enough-thank-you-partial-results">Good Enough, Thank you: Partial Results</h3>
+<p>When it's convienent to externalize stop conditions. But .... is it not what progress is for ? Can't we just simply STOP when progress is met or overreached ? Probably ! Compare the current schemes that do not use progress and the one that do ... progress is probably simpler ...</p>
+<h4 id="fibionacci-sequence">Fibionacci Sequence</h4>
+<p>Fibionacci generator:</p>
+<pre><code>def generator():
+    a, b = 0, 1
+    while True:
+        yield None, a
+        a, b = b, a + b</code></pre>
+<p>Use it like that:</p>
+<pre><code>... </code></pre>
+<p>Modify it to return the list of computed values and the progress.</p>
+<pre><code>def fib_generator(n):
+    a, b = 0, 1
+    results = []
+    while True:
+        results.append(a)
+        progress = a / n
+        yield progress, results
+        a, b = b, a + b</code></pre>
+<p>then use the simpler handler that makes sure that you do not overshoot your target</p>
+<pre><code>def track_progress():
+    def handler(progress, result, **extra):
+        if progress &gt; 1.0:
+            return result[:-1]
+    return handler
+
+def fibionacci(n):
+    function = breakpoint(track_progress)(lambda: fib_generator(n))
+    return function()</code></pre>
+<p>But you may actually be willing to keep the original, simple and clean, version of the fibionacci generator (hey, maybe you cannot change that code !) and externalize the termination condition. It's actually possible!</p>
+<pre><code>def fib_generator():
+    a, b = 0, 1
+    while True:
+        yield None, a
+        a, b = b, a + b
+
+def max_result(n):
+    def handler_factory():
+        results = []
+        def handler(**kwargs):
+            number = kwargs[&quot;result&quot;]
+            if number &gt; n:
+                return results
+            results.append(number)
+        return handler
+    return handler_factory
+
+def fibionacci(n):
+    function = breakpoint(max_result(n))(fib_generator)
+    return function()</code></pre>
+<h4 id="root-finding">Root Finding</h4>
+<p>Example on how to deal with numerical precision.</p>
+<p><strong>TODO: example with gradient algorithm that does not progress anymore ? Search the solution of <code>x**2 - 2 = 0</code> ?</strong> Rk: we could also use progress here ... Compare the two schemes ? The &quot;not-progress&quot; stuff externalizes more of the code ... wheter this is good or bad is yet to be seen. Rk: progress SHOULD be a linear measure of time, the algorithm complexity should be taken into account if we want the time measurements to be stable.</p>
+<p><br /><span class="math"><em>f</em>(<em>x</em>) = <em>x</em><sup>2</sup> − 2. 0</span><br /></p>
+<p>We have <span class="math"><em>f</em>ʹ(<em>x</em>) = 2<em>x</em></span> ... describe Newton's algorithm.</p>
+<pre><code>def generator():
+    x0 = 2.0
+    while True:
+        yield None, x0
+        x0 = x0 - 0.5 * (x0 - 2.0 / x0)
+
+def min_step(eps):
+    def handler_factory():
+        x = [None]
+        def handler(**kwargs):
+            x0, x1 = x[0], kwargs[&quot;result&quot;]
+            if x0 is not None:
+                step = abs(x1 - x0)
+                if step &lt; eps:
+                    return x1
+            x[0] = x1
+        return handler
+    return handler_factory
+
+def find_root(eps=1e-15):
+    function = breakpoint(handler=min_step(eps))(generator)
+    return function()</code></pre>
+<p><strong>TODO:</strong> add a failure time ? Add a management of convergenve to the NEGATIVE solution ?</p>
+<hr />
+<h3 id="this-takes-too-much-time-...">This takes too much time ...</h3>
+<p>Handler Factories:</p>
+<pre><code>def max_wait(seconds):
+    def handler_factory():
+        def handler(**kwargs):
+            remaining = kwargs[&quot;remaining&quot;]
+            if remaining &gt; seconds:
+                raise AbortException(**kwargs)
+    return handler_factory
+
+def max_yields(n):
+    def handler_factory():
+        yields = [0]
+        def handler(**kwargs):
+            yields[0] += 1
+            if yields[0] &gt; n:
+                raise AbortException(**kwargs)
+        return handler
+    return handler_factory</code></pre>
+</section>
 
 </body></html>
