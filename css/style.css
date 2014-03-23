@@ -79,6 +79,10 @@ code {
   font-size: 0.9em;
 }
 
+p code {
+  background: #ffe57a;
+}
+
 pre code {
   display: block;
   width: 840px;
