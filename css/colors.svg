@@ -14,7 +14,7 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.48.3.1 r9886"
-   sodipodi:docname="New document 1">
+   sodipodi:docname="colors.svg">
   <defs
      id="defs4" />
   <sodipodi:namedview
@@ -25,7 +25,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.175"
-     inkscape:cx="-127.85714"
+     inkscape:cx="-1133.5714"
      inkscape:cy="-965.71428"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
@@ -43,7 +43,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -141,7 +141,7 @@
        x="-3135.7144"
        y="-610.49493" />
     <rect
-       style="fill:#ff7901;fill-opacity:1;stroke:none"
+       style="fill:#fe7800;fill-opacity:1;stroke:none"
        id="rect2985-4"
        width="671.42859"
        height="731.42859"
@@ -169,12 +169,12 @@
        x="-2312.8574"
        y="383.79077" />
     <rect
-       style="fill:#ffcc01;fill-opacity:1;stroke:none"
+       style="fill:#fff5cc;fill-opacity:1;stroke:none"
        id="rect4062"
-       width="3365.7144"
-       height="2131.4285"
-       x="-2885.7144"
-       y="1435.2192" />
+       width="2565.7144"
+       height="1645.7142"
+       x="-2411.4287"
+       y="1680.9335" />
     <text
        xml:space="preserve"
        style="font-size:144px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Linux Libertine O;-inkscape-font-specification:Linux Libertine O"
@@ -186,7 +186,7 @@
          id="tspan4009"
          x="-2262.8572"
          y="1920.9336"
-         style="-inkscape-font-specification:Inconsolata Medium;font-family:Inconsolata;font-weight:500;font-style:normal;font-stretch:normal;font-variant:normal;fill:#ff7901;fill-opacity:1">@breakpoint(partial)</tspan><tspan
+         style="-inkscape-font-specification:Inconsolata Bold;font-family:Inconsolata;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;fill:#ff7901;fill-opacity:1">@breakpoint(partial)</tspan><tspan
          sodipodi:role="line"
          x="-2262.8572"
          y="2100.9336"
