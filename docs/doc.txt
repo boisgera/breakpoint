@@ -12,26 +12,23 @@ Preamble
 Using Generator to Break Long-Running Functions
 --------------------------------------------------------------------------------
 
-Basic operation:
 
-    result = compute(result)
-
-Encapsulate instead and call the function ?
+Faking a computation:
 
     import time
 
-    def compute(value):
+    def inc(n):
         time.sleep(0.1)
-        return value + 1
+        return n + 1
 
-That's our simulation of compute computation. Long-running operations are
+That's our simulation of inc computation. Long-running operations are
 sequences of such operations.
 
     def count_to_three():
         result = 0
-        result = compute(result)
-        result = compute(result)
-        result = compute(result)
+        result = inc(result)
+        result = inc(result)
+        result = inc(result)
         return result
 
 Using it:
@@ -54,11 +51,11 @@ actually *is* valid code to be wrapped.
     def count_to_three():
         result = 0
         yield
-        result = compute(result)
+        result = inc(result)
         yield
-        result = compute(result)
+        result = inc(result)
         yield
-        result = compute(result)
+        result = inc(result)
         yield result
 
 Using it:
@@ -69,28 +66,69 @@ Using it:
     >>> counter.next()
     >>> counter.next()
     3
+    >>> counter.next()
+    Traceback (most recent call last):
+    ...
+    StopIteration
 
 Version not very useful: we have split the info, but no criteria to actually
-do something useful in the steps. Hence progress and partial result.
+do something useful in the steps. Hence progress and partial result. Begin
+with partial results only.
 
-Generator version: progress and partial result
+    def count_to_three():
+        result = 0
+        yield result
+        result = inc(result)
+        yield result
+        result = inc(result)
+        yield result
+        result = inc(result)
+        yield result
+
+Using it:
+
+    >>> counter = count_to_three()
+    >>> counter.next()
+    0
+    >>> counter.next()
+    1
+    >>> counter.next()
+    2
+    >>> counter.next()
+    3
+    >>> counter.next()
+    Traceback (most recent call last):
+    ...
+    StopIteration
+
+
+
+Generator version: partial result AND progress. Later ??? Too early for that ?
 
     def count_to_three():
         result = 0
         yield 0 / 3, result
-        result = compute(result)
+        result = inc(result)
         yield 1 / 3, result
-        result = compute(result)
+        result = inc(result)
         yield 2 / 3, result
-        result = compute(result)
+        result = inc(result)
         yield 3 / 3, result
 
-generator version with progress and partial result: explain 3 ops,
-hence progress computation. Explain partial result. Those two results
-are optional (replacable by None). If you don't care at all, `yield`
-(aka `yield None`) is OK too.
 
-State that progress is optional (`None` if you don't know)
+
+    >>> counter = count_to_three()
+    >>> counter.next()
+    (0.0, 0)
+    >>> counter.next()
+    (0.3333333333333333, None)
+    >>> counter.next()
+    (0.6666666666666666, None)
+    >>> counter.next()
+    (1.0, None)
+
+generator version with progress and partial result: explain 3 ops,
+hence progress computation. Explain partial result. 
 
 Using it:
 
@@ -110,7 +148,7 @@ Loop version, explicit progress, partial result
     def count_to(n):
         result = 0
         for i in range(n):
-            result = compute(result)
+            result = inc(result)
         return result
 
 Using it:
@@ -123,7 +161,7 @@ Using it:
         for i in range(n):
             progress = i / n
             yield progress, result 
-            result = compute(result)
+            result = inc(result)
         return result
 
 
@@ -141,7 +179,7 @@ Restore the original function behavior (reverse the split) from the generator:
         for i in range(n):
             progress = i / n
             yield progress, result 
-            result = compute(result)
+            result = inc(result)
         return result
 
 Using it:
@@ -166,7 +204,7 @@ Decorate `count_to` like this:
         for i in range(n):
             progress = i / n
             yield progress, result 
-            result = compute(result)
+            result = inc(result)
         return result
 
 Use it like this:
@@ -185,12 +223,11 @@ Explain handler factory (closure): every time your run, a new instance of the
 handler is generated. For example:
 
     def partial():
-       start = True
+       start = [True]
        def handler(**kwargs):
-           nonlocal start # not in Python 2.7 !
-           if start:
+           if start[0]:
                print "first handler call"
-               start = False
+               start[0] = False
            print kwargs["progress"], kwargs["result"]
        return handler
 
@@ -251,7 +288,7 @@ Use it like that:
 
     ... 
 
-Modify it to return the list of computed values and the progress.
+Modify it to return the list of incd values and the progress.
 
     def fib_generator(n):
         a, b = 0, 1
@@ -289,11 +326,10 @@ and externalize the termination condition. It's actually possible!
     def max_result(n):
         def handler_factory():
             results = []
-            def handler(**kwargs):
-                number = kwargs["result"]
-                if number > n:
+            def handler(result, **extra):
+                if result > n:
                     return results
-                results.append(number)
+                results.append(result)
             return handler
         return handler_factory
 

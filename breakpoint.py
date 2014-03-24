@@ -117,11 +117,14 @@ __version__ = "2.0.2"
 
 # TODO: add a "no_progress" parameter to break point ? That would be handy.
 #       or explicit progress=True ? Which one is the best ? Probably the
-#       latter.
+#       latter. Err ... when dt is set, we do need progress actually, 
+#       otherwise it makes little sense. Can we omit the progress attribute
+#       then ? Can we forget about progress and accept `dt=True` instead ?
+#       That's not very explicit, but that may be good enough ... Try it !
 
-def breakpoint(handler=None, dt=None):
+def function(handler=None, dt=None):
     """
-    Breakpoint decorator
+    Breakpoint function decorator
 
     Arguments:
 
@@ -137,7 +140,10 @@ def breakpoint(handler=None, dt=None):
         estimate is available.
     """
     if dt == 0.0:
-        raise ValueError("dt=0.0 is invalid, it shall be positive (or None).")
+        error = "dt=0.0 is invalid, use positive number (or None)."
+        raise ValueError(error)
+    elif bool(dt) is not False:
+        dt = float(dt) # makes 1.0 the default when dt = True.
 
     def broken(function):
         def broken_(*args, **kwargs):
@@ -146,7 +152,7 @@ def breakpoint(handler=None, dt=None):
             else:
                 handler_ = None
             # define t0 as the function call time ? Or the first
-            # yield ? MMMmm we are conflating to concepts here,
+            # yield ? MMMmm we are conflating two concepts here,
             # both values are useful. if ty is the first yield time,
             # t - t0 is the elapsed time but the remaining time should
             # be computed with ty (or not: more general formula that
@@ -157,10 +163,10 @@ def breakpoint(handler=None, dt=None):
             while True:
                 try:
                     info = generator.send(multiplier)
-                    if info is None:
-                        progress, result = None, None
-                    else:
+                    if dt:
                         progress, result = info
+                    else:
+                        progress, result = None, info
 
                     if t0 is None: # first yield
                         t0 = t = time.time()
@@ -169,7 +175,7 @@ def breakpoint(handler=None, dt=None):
                         t_ = time.time()
                         dt_ = t_ - t
                         t = t_
-                        if dt is not None:
+                        if dt:
                             try:
                                 multiplier = dt / dt_
                             except ZeroDivisionError:
@@ -188,7 +194,9 @@ def breakpoint(handler=None, dt=None):
                         handler_result = handler_(progress=progress, 
                                                   elapsed=t-t0, 
                                                   remaining=rt, 
-                                                  result=result)
+                                                  result=result, 
+                                                  args=args,
+                                                  kwargs=kwargs)
                         if handler_result is not None:
                             return handler_result
                 except StopIteration:
@@ -261,7 +269,10 @@ def timeout(time, abort=True, asap=False):
 # This is ugly.
 def printer():
     def _printer(**kwargs):
-        print args
+        print "progress: ", progress
+        print "elapsed:  ", elapsed
+        print "remaining:", remaining
+        print "result:"   , result
     return _printer
 
 def counter0(n):
@@ -270,7 +281,7 @@ def counter0(n):
         time.sleep(0.1); result = result + 1
     return result
 
-@breakpoint(handler=printer)
+@function(handler=printer)
 def counter1(n):
     result = 0
     while result < n:
@@ -287,7 +298,7 @@ def counter1(n):
 # despite the discrete constraint on the loop atoms. It is asymptotically exact ?
 # Is the mean elapsed time equal to the target elapsed time ?
 
-@breakpoint(dt=1.0, handler=printer)
+@function(dt=1.0, handler=printer)
 def counter2(n):
     result = 0
     counter, threshold = 1, 1.0
@@ -307,7 +318,7 @@ def counter2(n):
 #    objects ? Would become something like below. I don't know really. It's
 #    maybe slightly more explicit but probably slower and less hackable ...
 
-@breakpoint(dt=1.0, handler=printer)
+@function(dt=1.0, handler=printer)
 def counter2_with_helper(n):
     result = 0
     watchdog = Watchdog()
@@ -359,7 +370,7 @@ class Alarm(object):
             self.threshold = int(round(multiplier * self.threshold))
             self.threshold = max(1, self.threshold)
 
-@breakpoint(handler=printer, dt=1.0)
+@function(handler=printer, dt=1.0)
 def counter2_alarm(n):
     result = 0
     alarm = Alarm()
@@ -381,7 +392,7 @@ def counter2_alarm(n):
 # NB: we could be in the situation where we want to examine manually the
 # partial result and then RESUME the computation. Can we support that ?
 
-@breakpoint(handler=timeout(10.0, abort=False))
+@function(handler=timeout(10.0, abort=False))
 def wait(N=100):
     for i in range(N):
         print "i:", i
@@ -389,4 +400,96 @@ def wait(N=100):
         time.sleep(1.0)
     yield 1.0, True
 
+#
+# Documentation Examples
+# ------------------------------------------------------------------------------
+#
+
+# TODO: get the documentation, transform code blocks into interpreter statements
+#       when they are not in this form and doctest the result. Also define a 
+#       module with all the code defined in the documentation ? (not the interpreter
+#       chunks).
+
+import time
+
+def inc(n):
+    time.sleep(0.1)
+    return n + 1
+
+def count_to_three():
+    result = 0
+    result = inc(result)
+    result = inc(result)
+    result = inc(result)
+    return result
+
+assert count_to_three() == 3
+
+def count_to_three():
+    result = 0
+    yield
+    result = inc(result)
+    yield
+    result = inc(result)
+    yield
+    result = inc(result)
+    yield result
+
+counter = count_to_three()
+counter.next()
+counter.next()
+counter.next()
+assert counter.next() == 3
+
+def fibionacci_generator():
+    a, b = 0, 1
+    while True:
+        yield a
+        a, b = b, a + b
+
+def stack(stop):
+    def handler_factory():
+        results = []
+        def handler(result, **extra):
+            if stop(result):
+                return results
+            results.append(result)
+        return handler
+    return handler_factory
+
+# TODO: can we simplify the passing of arguments to the handler ? Maybe if the
+#       function arguments where automatically transferred to the handler as
+#       args and kwargs ? Grmph, that is not very pretty because to be useful,
+#       the handler would have to implement code for the normalization of
+#       positional vs keyword arguments ...
+
+def fibionacci(n):
+    def stop(result):
+        return result > n
+    wrapper = function(stack(stop))
+    return wrapper(fibionacci_generator)()
+
+# ------------------------------------------------------------------------------
+
+def generator(x0):
+    while True:
+        yield x0
+        x0 = x0 - 0.5 * (x0 - 2.0 / x0)
+
+def min_step(eps):
+    def handler_factory():
+        x = [None]
+        def handler(result, **extra):
+            x0, x1 = x[0], result
+            if x0 is not None:
+                step = abs(x1 - x0)
+                if step < eps:
+                    return x1
+            x[0] = x1
+        return handler
+    return handler_factory
+
+def fixed_point(generator, x0, eps=1e-17):
+    wrapper = function(handler=min_step(eps))
+    return wrapper(generator)(x0)
 
