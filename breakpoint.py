@@ -110,7 +110,7 @@ __version__ = "2.0.2"
 # more complex computations that we do ? That may be overkill for
 # now ...
 
-# rename `handler` as `on_yield` ? `on_break` ? Is it readable when
+# rename `handler` as `on_yield` ? `on_breakpoint` ? Is it readable when
 # we DON'T use the argument name at all ?
 
 # Q: make handler mandatory ?
@@ -121,6 +121,8 @@ __version__ = "2.0.2"
 #       otherwise it makes little sense. Can we omit the progress attribute
 #       then ? Can we forget about progress and accept `dt=True` instead ?
 #       That's not very explicit, but that may be good enough ... Try it !
+
+# TODO: investigate the use of wrapt
 
 def function(handler=None, dt=None):
     """
@@ -196,7 +198,13 @@ def function(handler=None, dt=None):
                                                   remaining=rt, 
                                                   result=result, 
                                                   args=args,
-                                                  kwargs=kwargs)
+                                                  kwargs=kwargs) 
+                        # TODO: also add argspec ? To simplify the processing
+                        #       of the arguments ? Then we could also need
+                        #       something like inspect "getcallargs", but with
+                        #       the argspec instead of the function.
+                        # is there a real pattern for the transmission
+                        # of the generator args to the handler ?
                         if handler_result is not None:
                             return handler_result
                 except StopIteration:
@@ -266,13 +274,14 @@ def timeout(time, abort=True, asap=False):
 #
 
 
-# This is ugly.
 def printer():
-    def _printer(**kwargs):
+    def _printer(progress, elapsed, remaining, args, kwargs):
         print "progress: ", progress
         print "elapsed:  ", elapsed
         print "remaining:", remaining
-        print "result:"   , result
+        print "result:   ", result
+        print "args:     ", args
+        print "kwargs:   ", kwargs  
     return _printer
 
 def counter0(n):
