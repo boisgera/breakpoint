@@ -405,6 +405,3 @@ Handler Factories:
             return handler
         return handler_factory
 
-
-
-
