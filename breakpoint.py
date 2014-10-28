@@ -15,10 +15,18 @@ pass
 # Metadata
 # ------------------------------------------------------------------------------
 #
-__author__ = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
+
+__main__ = (__name__ == "__main__")
+
+__name__    = "breakpoint"
+__version__ = "2.1.0-alpha"
+__license__ = "MIT License" 
+__author__  = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
 __license__ = "MIT License"
-__url__ = "https://github.com/boisgera/breakpoint" 
-__version__ = "2.0.2"
+__url__     = "https://github.com/boisgera/breakpoint" 
+__summary__ = None
+__readme__  = None
+__classifiers__ = None
 
 #
 # Misc. Notes
