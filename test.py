@@ -195,7 +195,9 @@ The code of the function shall be adapted to solve this issue:
     dt: 1.0,
     10
 
-# TODO: move this to the `alarm` branch, do not include in the master for now.
+TODO: move the test below to the `alarm` branch, do not include in the master.
+The API is not stable yet.
+
 To avoid the duplication of this low-level code, the pattern has been factored 
 out in the `Alarm` class:
 
