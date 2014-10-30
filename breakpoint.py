@@ -29,115 +29,13 @@ __summary__ = "Function Execution Tracker"
 __readme__  = None
 __classifiers__ = None
 
-#
-# Misc. Notes
-# ------------------------------------------------------------------------------
-# keywords: breakpoint, timing, etc.
-#
-# Use partial result if any ? Demonstrate how a handler may decide to stop
-# the iteration if it takes too long ?
-#
-# Use iterators/generators instead of threads ? The values obtained are
-# progress < 1.0 until we obtain 1.0, then the last value is the result ?
-# Nah, go for a StopIteration and get the previous value ? But before,
-# we would try to use it as a progress ... end with yield 1.0, result ?
-#
-# Use the .send method to say if the frequency of the outputs should be
-# increased / decreased (that may be ignored). What kind of message ?
-# A frequency multiplier ? Yup. And the receiver is free to do something
-# for example only if multiplier is > 2 or < 1/2.
-#
-# rt2 = (1.0 - new_progress) / (new_progress - progress) * dt_
-# way to smooth the stuff ? With a weight that
-# is more important for recent evaluations, but
-# tempered by a (possibly large) collection of
-# previous evals ?
-# Recursive equations for the slope ? And deduce
-# the remaining time ?
-# - given DT/DP and dt/dp, how can we configure
-#   to get dt/dp (easy !) and DT + dt / dp + Dp ?
-# yes:
-# DT + dt / dp + Dp = alpha dt/dp + (1-alpha) Dt/Dp
-# with
-# alpha = dp / (dp + Dp)
-#
-# -> introduce a 'beta' factor such as
-# beta = 0 -> instant. slope and beta = 1 -> total
-# slope ? Or fixed alpha ?
-#
-#
-# Make dt optional ? Default to no time estimate or to 1.0 ?
-# Make multiplier possibly return None ?
-#
-#
-# Provide no progress estimate ?
-#
-# "Smoothing" options for remaining time estimate.
-#
-# replace handler with handlers ? Use *handlers ?
-#
-#
-# Use the breakpoint decorated to extend the function signature ?
-# That would allow dt and handlers to be given at runtime. We would
-# stick to the convention that without extra parameters, the function
-# is executed normally. Would that be more flexible ? That would allow
-# use to get rid of the mandatory handler *factory* level, the user
-# would instantiate the handlers as necessary.
-#
-# The extra arguments would be `_dt` and `_on_breakpoint` or `on_break`
-# with a callable (or a list of callables). Underscores ? Really ?
-# What if `dt` is already taken ... Distinguish static breakpoint 
-# decorator and dynamic one ? Do we need to have two names ?
-# or call with no arguments (or with arguments) dt, on_break and a
-# last one, `dynamic` or `overridable`, etc., that if True, allows
-# for the dt and handler arguments to be overriden at runtime
-# (but then, on_break would be a handler, not a handler factory ?).
-# Use `on_break_factory` in the static version ? urk ...
-#
-# OK, dynamic **is** necessary (for example, we may set dt from the 
-# command-line, but the function call system suck. Maybe add a bunch
-# of extra attributes to the function ? How can the function access
-# those values ? OK, we return instead a callable instance, that one
-# can access its attribute without any problem. See if that policy
-# sticks ... Get rid of static / non-configurable decorator 
-# arguments altogether ? Or keep them as a shortcut ?
-# Can we change the handler / dt, afterwards ? Uhu that's tricky,
-# we're talking handler factorries remember ?
-
-#
-# Can this policy be used on **methods** ?
-#
-# TODO: custom timer (for tests for example ?)
-#
-# Q: should we call the handler a last time when it's over with
-#    a special flag ?
-#
-# Ability to "tune" the breakpoint parameters after the wrapping ?
-#
-# Should we memorize all yield times and the starting point ?
-# And communicate all this to the handler so that it can perform
-# more complex computations that we do ? That may be overkill for
-# now ...
-
-# rename `handler` as `on_yield` ? `on_breakpoint` ? Is it readable when
-# we DON'T use the argument name at all ?
-
-# Q: make handler mandatory ?
-
-# TODO: add a "no_progress" parameter to break point ? That would be handy.
-#       or explicit progress=True ? Which one is the best ? Probably the
-#       latter. Err ... when dt is set, we do need progress actually, 
-#       otherwise it makes little sense. Can we omit the progress attribute
-#       then ? Can we forget about progress and accept `dt=True` instead ?
-#       That's not very explicit, but that may be good enough ... Try it !
-
-# TODO: investigate the use of wrapt
-
-_timer = time.time
+_timer = time.time # not part of the public API, used for mocks in tests.
 
 def function(on_yield=None, progress=False, dt=None):
     """
-    Breakpoint function (aka generator) decorator
+    Transform a function with breakpoints (aka generator) into a function.
+
+    The result of `function` can (and often will) be used as a decorator.
 
     Arguments
     ---------
@@ -235,18 +133,14 @@ def function(on_yield=None, progress=False, dt=None):
                                                        elapsed=t-t0, 
                                                        remaining=rt, 
                                                        result=result, 
+                                                       # not documented:
                                                        args=args,
-                                                       kwargs=kwargs) 
-                        # TODO: also add argspec ? To simplify the processing
-                        #       of the arguments ? Then we could also need
-                        #       something like inspect "getcallargs", but with
-                        #       the argspec instead of the function.
-                        # is there a real pattern for the transmission
-                        # of the generator args to the on_yield ?
+                                                       kwargs=kwargs)
 
-                        # what if we want to stop execution AND return None ?
                         if handler_result is not None:
-                            return handler_result
+                            return handler_result # not documented feature.
+                            # The case where we want to stop the execution
+                            # *and* return None is not supported.
                 except StopIteration:
                     return result
         function_.decorator = decorator
@@ -254,6 +148,118 @@ def function(on_yield=None, progress=False, dt=None):
         return function_
     return decorator
 
+
+#
+# Misc. Notes and experiments
+# ------------------------------------------------------------------------------
+
+# Rk: today the real issue is the lack of support for adaptation of breakpoint
+#     frequency adaptation, hence the efforts on alarm. Focus on that.
+
+# TODO: add argspec to the arguments given to the handler ? 
+#       To simplify the processing of the arguments ? Then we could also need
+#       something like inspect "getcallargs", but with the argspec instead of 
+#       the function.
+
+#
+# Use iterators/generators instead of threads ? The values obtained are
+# progress < 1.0 until we obtain 1.0, then the last value is the result ?
+# Nah, go for a StopIteration and get the previous value ? But before,
+# we would try to use it as a progress ... end with yield 1.0, result ?
+#
+# Use the .send method to say if the frequency of the outputs should be
+# increased / decreased (that may be ignored). What kind of message ?
+# A frequency multiplier ? Yup. And the receiver is free to do something
+# for example only if multiplier is > 2 or < 1/2.
+#
+# rt2 = (1.0 - new_progress) / (new_progress - progress) * dt_
+# way to smooth the stuff ? With a weight that
+# is more important for recent evaluations, but
+# tempered by a (possibly large) collection of
+# previous evals ?
+# Recursive equations for the slope ? And deduce
+# the remaining time ?
+# - given DT/DP and dt/dp, how can we configure
+#   to get dt/dp (easy !) and DT + dt / dp + Dp ?
+# yes:
+# DT + dt / dp + Dp = alpha dt/dp + (1-alpha) Dt/Dp
+# with
+# alpha = dp / (dp + Dp)
+#
+# -> introduce a 'beta' factor such as
+# beta = 0 -> instant. slope and beta = 1 -> total
+# slope ? Or fixed alpha ?
+#
+#
+# Make dt optional ? Default to no time estimate or to 1.0 ?
+# Make multiplier possibly return None ?
+#
+#
+# Provide no progress estimate ?
+#
+# "Smoothing" options for remaining time estimate.
+#
+# replace handler with handlers ? Use *handlers ?
+#
+#
+# Use the breakpoint decorated to extend the function signature ?
+# That would allow dt and handlers to be given at runtime. We would
+# stick to the convention that without extra parameters, the function
+# is executed normally. Would that be more flexible ? That would allow
+# use to get rid of the mandatory handler *factory* level, the user
+# would instantiate the handlers as necessary.
+#
+# The extra arguments would be `_dt` and `_on_breakpoint` or `on_break`
+# with a callable (or a list of callables). Underscores ? Really ?
+# What if `dt` is already taken ... Distinguish static breakpoint 
+# decorator and dynamic one ? Do we need to have two names ?
+# or call with no arguments (or with arguments) dt, on_break and a
+# last one, `dynamic` or `overridable`, etc., that if True, allows
+# for the dt and handler arguments to be overriden at runtime
+# (but then, on_break would be a handler, not a handler factory ?).
+# Use `on_break_factory` in the static version ? urk ...
+#
+# OK, dynamic **is** necessary (for example, we may set dt from the 
+# command-line, but the function call system suck. Maybe add a bunch
+# of extra attributes to the function ? How can the function access
+# those values ? OK, we return instead a callable instance, that one
+# can access its attribute without any problem. See if that policy
+# sticks ... Get rid of static / non-configurable decorator 
+# arguments altogether ? Or keep them as a shortcut ?
+# Can we change the handler / dt, afterwards ? Uhu that's tricky,
+# we're talking handler factorries remember ?
+
+#
+# Can this policy be used on **methods** ?
+#
+# TODO: custom timer (for tests for example ?)
+#
+# Q: should we call the handler a last time when it's over with
+#    a special flag ?
+#
+# Ability to "tune" the breakpoint parameters after the wrapping ?
+#
+# Should we memorize all yield times and the starting point ?
+# And communicate all this to the handler so that it can perform
+# more complex computations that we do ? That may be overkill for
+# now ...
+
+# rename `handler` as `on_yield` ? `on_breakpoint` ? Is it readable when
+# we DON'T use the argument name at all ?
+
+# Q: make handler mandatory ?
+
+# TODO: add a "no_progress" parameter to break point ? That would be handy.
+#       or explicit progress=True ? Which one is the best ? Probably the
+#       latter. Err ... when dt is set, we do need progress actually, 
+#       otherwise it makes little sense. Can we omit the progress attribute
+#       then ? Can we forget about progress and accept `dt=True` instead ?
+#       That's not very explicit, but that may be good enough ... Try it !
+
+# TODO: investigate the use of wrapt
+
+
+# TODO: sort the mess and move the interesting bits (alarm ?) to another branch.
 
 #
 # Handlers
