@@ -83,18 +83,17 @@ import breakpoint
 
 # ------------------------------------------------------------------------------
 
-metadata     = about.get_metadata(breakpoint)
-contents     = dict(py_modules=["breakpoint"])
-requirements = {}
-data         = {}
-scripts      = {}
-plugins      = {}
-
-info = {}
-info.update(contents)
-info.update(metadata)
-info.update(requirements)
+info = dict(
+  metadata     = about.get_metadata(breakpoint),
+  code         = dict(py_modules=["breakpoint"]),
+  data         = {},
+  requirements = {},
+  scripts      = {},
+  plugins      = {},
+  tests        = dict(test_suite="test.test_suite"),
+)
 
 if __name__ == "__main__":
-    setuptools.setup(**info)
+    kwargs = {k:v for dct in info.values() for (k,v) in dct.items()}
+    setuptools.setup(**kwargs)
 

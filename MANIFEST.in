@@ -1,3 +1,4 @@
 include LICENSE.txt
-include about.py
+recursive-include lib *
+include test.py
 

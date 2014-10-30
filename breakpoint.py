@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 """
-Progress Tracker
+Breakpoint - Function Execution Tracker
 """
 
 # Python 2.7 Standard Library
 from __future__ import division
 import time
+
 
 # Third-Party Libraries
 pass
@@ -23,8 +24,8 @@ __version__ = "2.1.0-alpha"
 __license__ = "MIT License" 
 __author__  = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
 __license__ = "MIT License"
-__url__     = "https://github.com/boisgera/breakpoint" 
-__summary__ = None
+__url__     = "http://boisgera.github.io/breakpoint" 
+__summary__ = "Function Execution Tracker"
 __readme__  = None
 __classifiers__ = None
 
@@ -132,57 +133,86 @@ __classifiers__ = None
 
 # TODO: investigate the use of wrapt
 
-def function(handler=None, dt=None):
+_timer = time.time
+
+def function(on_yield=None, progress=False, dt=None):
     """
-    Breakpoint function decorator
+    Breakpoint function (aka generator) decorator
 
-    Arguments:
+    Arguments
+    ---------
 
-      - `handler` is an optional function factory that is called at each step.
-        The signature of the function that is created by `handler_ = handler()` 
-        shall be (it is invoked with keyword arguments):
+      - `on_yield`: function handler factory.
 
-            def handler_(progress, elapsed, remaining, result)
+        A call `handler = on_yield()` is performed every time the
+        decorated generator is called. The object `handler` shall be 
+        function-like ; it is called for every yield of the generator
+        function, with the following keyword arguments:
 
-      - `dt` is the target time between two successive generator yields. 
-        The generator that is decorated is sent at each new stage a number
-        that is a prescribed yield period multiplier, or `None` if no
-        estimate is available.
+          - `progress`: a floating-point number between `0.0` (when the
+            function execution starts) and `1.0` (when it ends), or `None`
+            when this information is not available.
+
+          - `elapsed`: the time elapsed since the function call in seconds.
+
+          - `remaining`: the estimated time to the end of the function, 
+             in seconds, or `None` when no estimate is available.
+
+          - `args`: positional arguments of the decorated generator.
+
+          - `kwargs`: keyword arguments of the decorated generator.  
+
+          - `result`: partial result of the decorated generator.
+
+        If the handler returns a value that is not `None`, the decorated
+        generator execution stops and this value is returned.
+
+      - `progress`: `True` when the generator yields `(progress, result)`
+        instead of `result`.
+
+      - `dt` is the target time between two successive breakpoints, 
+        or `None` if there is no such target.
+ 
+        At every breakpoint, the generator receives a floating-point number;
+        it is a multiplier that should be applied to the current period between
+        breakpoints to reach the `dt` target.
+        The multiplier may be `None` if no estimate is available.
+
+    Returns
+    -------
+
+      - `decorator`: a decorator for generator functions.
+
     """
-    if dt == 0.0:
-        error = "dt=0.0 is invalid, use positive number (or None)."
-        raise ValueError(error)
-    elif bool(dt) is not False:
-        dt = float(dt) # makes 1.0 the default when dt = True.
+    if dt is not None:
+        dt = float(dt)
+        if dt < 0.0:
+          error = "dt={0} is invalid, use a positive number (or None)."
+          raise ValueError(error.format(dt))
 
-    def broken(function):
-        def broken_(*args, **kwargs):
-            if handler is not None:
-                handler_ = handler()
+    def decorator(generator_function):
+        def function_(*args, **kwargs):
+            if on_yield is not None:
+                yield_handler = on_yield()
             else:
-                handler_ = None
-            # define t0 as the function call time ? Or the first
-            # yield ? MMMmm we are conflating two concepts here,
-            # both values are useful. if ty is the first yield time,
-            # t - t0 is the elapsed time but the remaining time should
-            # be computed with ty (or not: more general formula that
-            # forget the old values could be implemented too).
-            generator = function(*args, **kwargs)
+                yield_handler = None
+
+            generator = generator_function(*args, **kwargs)
             t0 = t = None
             multiplier = None
             while True:
                 try:
                     info = generator.send(multiplier)
-                    if dt:
-                        progress, result = info
+                    if progress:
+                        progress_, result = info
                     else:
-                        progress, result = None, info
+                        progress_, result = None, info
 
                     if t0 is None: # first yield
-                        t0 = t = time.time()
+                        t0 = t = _timer()
                         rt = float("nan")
                     else:
-                        t_ = time.time()
+                        t_ = _timer()
                         dt_ = t_ - t
                         t = t_
                         if dt:
@@ -190,35 +220,39 @@ def function(handler=None, dt=None):
                                 multiplier = dt / dt_
                             except ZeroDivisionError:
                                 multiplier = float("inf")
-                        if progress is None:
+                        if progress_ is None:
                             rt = float("nan")
                         else:
                             try:
-                                rt = (1.0 - progress) / progress * (t - t0)
+                                rt = (1.0 - progress_) / progress_ * (t - t0)
                             except ZeroDivisionError:
                                 if progress < 1.0:
                                     rt = float("inf")
                                 else:
                                     rt = float("nan")
-                    if handler_ is not None:
-                        handler_result = handler_(progress=progress, 
-                                                  elapsed=t-t0, 
-                                                  remaining=rt, 
-                                                  result=result, 
-                                                  args=args,
-                                                  kwargs=kwargs) 
+                    if yield_handler:
+                        handler_result = yield_handler(progress=progress_, 
+                                                       elapsed=t-t0, 
+                                                       remaining=rt, 
+                                                       result=result, 
+                                                       args=args,
+                                                       kwargs=kwargs) 
                         # TODO: also add argspec ? To simplify the processing
                         #       of the arguments ? Then we could also need
                         #       something like inspect "getcallargs", but with
                         #       the argspec instead of the function.
                         # is there a real pattern for the transmission
-                        # of the generator args to the handler ?
+                        # of the generator args to the on_yield ?
+
+                        # what if we want to stop execution AND return None ?
                         if handler_result is not None:
                             return handler_result
                 except StopIteration:
                     return result
-        return broken_
-    return broken
+        function_.decorator = decorator
+        function_.generator = generator_function
+        return function_
+    return decorator
 
 
 #
@@ -226,29 +260,11 @@ def function(handler=None, dt=None):
 # ------------------------------------------------------------------------------
 #
 
-# Handler Use Cases:
-#   - printers (elapsed time mostly),
-#   - "gimme what you got" (with exception of with return of the early result),
-#   - "don't bother" (remaining time too long after the first few samples).
-#
-# Could all these use case be handled at the handler level, without the need
-# for an extra decorator ? Early stop (or "good enough") is easy, just raise
-# StopIteration from the handler. Demonstrate that !
-
-
-# go to the end (real timeout) or abort asap (estimated timeout) ?
-
-# Just make AbortException more generic ? Embeds a single datum, and
-# the breakpoint decorator just unpacks it ? Mmmm. Nah AbortException
-# should propagate, but we may use a PartialResult instead. Oh well,
-# even this level of wrapping is probably MOSTLY useless and best 
-# delegated to the user: we could return any non-None value returned
-# by a handler. If `None` is a value that could have been returned
-# from the original function, then the user needs some wrapping.
-# Grmph. Do we handle that ? Can we help without making a mess of the
-# usual case when it's not needed ? Just by the definition of a 
-# `NONE` singleton for example with a special handling in the decorator ?
-# Dunno. YAGNI for now.
+def debug():
+    def debug_(**kwargs):
+        for name in "progress elapsed remaining result args kwargs".split(): 
+            print name + ":", kwargs[name]
+    return debug_
 
 class AbortException(Exception):
     def __init__(self, **kwargs):
@@ -258,38 +274,56 @@ def timeout(time, abort=True, asap=False):
     def handler_factory():
         large_remaining = [0]
         if abort and asap:
-            def handler(progress, elapsed, remaining, result):
+            def on_yield(**kwargs):
+                elapsed = kwargs["elapsed"]
+                remaining = kwargs["remaining"]
+                progress = kwargs["progress"]
                 if elapsed + remaining > time:
                     large_remaining[0] += 1
-                    # tweakability ? Use a mean on remaining instead ? 
-                    # Mean at least for 1% of the progress to be sure ?
                     if large_remaining[0] >= 5 and progress >= 0.01:
-                        raise AbortException(progress, elapsed, remaining, result)
+                        raise AbortException(**kwargs)
         elif abort and not asap:
-            def handler(progress, elapsed, remaining, result):
+            def on_yield(**kwargs):
+                elapsed = kwargs["elapsed"]
                 if elapsed >= time:
-                    raise AbortException(progress, elapsed, remaining, result)
+                    raise AbortException(**kwargs)
         else:
-            def handler(progress, elapsed, remaining, result):
+            def on_yield(**kwargs):
+                elapsed = kwargs["elapsed"]
                 if elapsed >= time:
                     raise StopIteration()
-        return handler
+        return on_yield
     return handler_factory
 
 #
-# Test
+# Generators
 # ------------------------------------------------------------------------------
 #
 
+def count_to(n, wait=0.1):
+    i = 0
+    while i < n:
+        yield i
+        time.sleep(wait)
+        i = i + 1
+    yield i
+
+
+
+
+
+
+
+
+
+
+
+
 
 def printer():
-    def _printer(progress, elapsed, remaining, args, kwargs):
-        print "progress: ", progress
-        print "elapsed:  ", elapsed
-        print "remaining:", remaining
-        print "result:   ", result
-        print "args:     ", args
-        print "kwargs:   ", kwargs  
+    def _printer(**kwargs):
+        for name in kwargs:
+            print name + ":", kwargs["name"]  
     return _printer
 
 def counter0(n):
@@ -298,7 +332,7 @@ def counter0(n):
         time.sleep(0.1); result = result + 1
     return result
 
-@function(handler=printer)
+@function(on_yield=printer)
 def counter1(n):
     result = 0
     while result < n:
@@ -315,7 +349,7 @@ def counter1(n):
 # despite the discrete constraint on the loop atoms. It is asymptotically exact ?
 # Is the mean elapsed time equal to the target elapsed time ?
 
-@function(dt=1.0, handler=printer)
+@function(dt=1.0, on_yield=printer)
 def counter2(n):
     result = 0
     counter, threshold = 1, 1.0
@@ -335,7 +369,7 @@ def counter2(n):
 #    objects ? Would become something like below. I don't know really. It's
 #    maybe slightly more explicit but probably slower and less hackable ...
 
-@function(dt=1.0, handler=printer)
+@function(dt=1.0, on_yield=printer)
 def counter2_with_helper(n):
     result = 0
     watchdog = Watchdog()
@@ -355,6 +389,9 @@ def counter2_with_helper(n):
 # of the computation and the iteration on the watchdog ? with izip ?
 # What is the watchdog supposed to return as a value ? Something that we 
 # can call `update` on ? Better name than watchdog ?
+
+# ------------------------------------------------------------------------------
+# TODO: move the "Alarm" experiment to another branch.
 
 # Think of the clock / alarm metaphor. Drop the dt in the decorator, 
 # instead instante an alarm, set its dt, then iterate on the alarm (clock)
@@ -387,7 +424,7 @@ class Alarm(object):
             self.threshold = int(round(multiplier * self.threshold))
             self.threshold = max(1, self.threshold)
 
-@function(handler=printer, dt=1.0)
+@function(on_yield=printer, dt=1.0)
 def counter2_alarm(n):
     result = 0
     alarm = Alarm()
@@ -409,7 +446,7 @@ def counter2_alarm(n):
 # NB: we could be in the situation where we want to examine manually the
 # partial result and then RESUME the computation. Can we support that ?
 
-@function(handler=timeout(10.0, abort=False))
+@function(on_yield=timeout(10.0, abort=False))
 def wait(N=100):
     for i in range(N):
         print "i:", i
@@ -457,6 +494,18 @@ counter.next()
 counter.next()
 counter.next()
 assert counter.next() == 3
+
+def count_to(n):
+    result = 0
+    for i in range(n):
+        yield result
+        result = inc(result)
+    yield result
+
+def print_partial():
+   def print_partial_(**kwargs):
+       print kwargs.get("result"),
+   return print_partial_
 
 def fibionacci_generator():
     a, b = 0, 1
