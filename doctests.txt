@@ -9,6 +9,10 @@ In the sequel:
         >>> 1 / 2
         0.5
 
+  - the module `breakpoint` is in the global namespace:
+
+        >>> import breakpoint
+
   - (a modified version of) the module `time` is in the global namespace.
 
     The modification matters only when this document is used for test purposes. 
@@ -16,7 +20,9 @@ In the sequel:
     such that the only computations that take any time are those calling 
     `time.sleep`.
 
-        >>> import time
+        >>> import types
+        >>> time = types.ModuleType("time")
+
         >>> _t = 0.0
         >>> def mock_time():
         ...     return _t
@@ -27,9 +33,7 @@ In the sequel:
         >>> time.time  = mock_time
         >>> time.sleep = mock_sleep
 
-  - the module `breakpoint` is in the global namespace:
-
-        >>> import breakpoint
+        >>> breakpoint.time = time
 
 
 Introduction of breakpoints
