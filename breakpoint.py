@@ -11,15 +11,13 @@ import time
 # Third-Party Libraries
 pass
 
-#
+
 # Metadata
 # ------------------------------------------------------------------------------
-#
-
 __main__ = (__name__ == "__main__")
 
 __name__    = "breakpoint"
-__version__ = "2.1.1"
+__version__ = "2.1.2"
 __license__ = "MIT License" 
 __author__  = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
 __license__ = "MIT License"
@@ -28,8 +26,7 @@ __summary__ = "Function Execution Tracker"
 __readme__  = None
 __classifiers__ = None
 
-_timer = time.time # not part of the public API, used for mocks in tests.
-
+# ------------------------------------------------------------------------------
 def function(on_yield=None, progress=False, dt=None):
     """
     Transform a function with breakpoints (aka generator) into a function.
@@ -106,10 +103,10 @@ def function(on_yield=None, progress=False, dt=None):
                         progress_, result = None, info
 
                     if t0 is None: # first yield
-                        t0 = t = _timer()
+                        t0 = t = time.time()
                         rt = float("nan")
                     else:
-                        t_ = _timer()
+                        t_ = time.time()
                         dt_ = t_ - t
                         t = t_
                         if dt:
