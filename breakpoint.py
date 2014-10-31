@@ -8,7 +8,6 @@ Breakpoint - Function Execution Tracker
 from __future__ import division
 import time
 
-
 # Third-Party Libraries
 pass
 
@@ -20,7 +19,7 @@ pass
 __main__ = (__name__ == "__main__")
 
 __name__    = "breakpoint"
-__version__ = "2.1.0-alpha"
+__version__ = "2.1.0"
 __license__ = "MIT License" 
 __author__  = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
 __license__ = "MIT License"
