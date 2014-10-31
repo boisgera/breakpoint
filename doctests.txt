@@ -327,7 +327,7 @@ The generator function can then be defined as:
 
     >>> def count_to_with_breakpoints(n):
     ...     i = 0
-    ...     alarm = breakpoint.Alarm()
+    ...     alarm = Alarm()
     ...     while i < n:
     ...         if alarm.next():
     ...             progress = i / n
