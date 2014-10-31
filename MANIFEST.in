@@ -1,4 +1,6 @@
 include LICENSE.txt
 recursive-include lib *
+include doctests.txt
 include test.py
+
 
