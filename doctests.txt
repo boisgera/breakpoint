@@ -1,0 +1,352 @@
+Preamble
+--------------------------------------------------------------------------------
+
+In the sequel:
+
+  - the `/` operator denotes "true division":
+
+        >>> from __future__ import division
+        >>> 1 / 2
+        0.5
+
+  - (a modified version of) the module `time` is in the global namespace.
+
+    The modification matters only when this document is used for test purposes. 
+    In this context, the `time.time` and `time.sleep` are mock functions, 
+    such that the only computations that take any time are those calling 
+    `time.sleep`.
+
+        >>> import time
+        >>> _t = 0.0
+        >>> def mock_time():
+        ...     return _t
+        >>> def mock_sleep(t):
+        ...     global _t
+        ...     _t = _t + t
+
+        >>> time.time  = mock_time
+        >>> time.sleep = mock_sleep
+
+  - the module `breakpoint` is in the global namespace:
+
+        >>> import breakpoint
+
+
+Introduction of breakpoints
+--------------------------------------------------------------------------------
+
+Let's take the elementary `count_to` function as an example:
+
+    >>> def count_to(n):
+    ...     i = 0
+    ...     while i < n:
+    ...         time.sleep(1.0); i = i + 1
+    ...     return i
+
+    >>> count_to(3)
+    3
+
+This function is executed in one single step ; we may however introduce a 
+variant with breakpoints with the `yield` keyword. This new definition
+is not a classic function but a [generator function]:
+
+    >>> def count_to_with_breakpoints(n):
+    ...     i = 0
+    ...     while i < n:
+    ...         yield
+    ...         time.sleep(1.0); i = i + 1
+    ...     yield i
+
+The transform `breakpoint.function()` turns the function with breakpoints back 
+into the original function, without breakpoints:
+
+    >>> function = breakpoint.function()
+    >>> count_to = function(count_to_with_breakpoints)
+    >>> count_to(3)
+    3
+
+The same transformation can be achieved with the decorator syntax:
+
+    >>> @breakpoint.function()
+    ... def count_to(n):
+    ...     i = 0
+    ...     while i < n:
+    ...         yield
+    ...         time.sleep(1.0); i = i + 1
+    ...     yield i
+    >>> count_to(3)
+    3
+
+
+[generator function]: https://docs.python.org/2/howto/functional.html
+
+
+Display time elapsed since the first yield
+--------------------------------------------------------------------------------
+
+The `breakpoint.function(...)` transforms are interesting when breakpoint
+handlers are introduced, with the `on_yield` argument ; breakpoint handlers
+are functions that are called at every breakpoint.
+
+They can for example be used to display the elapsed time since the first 
+breakpoint:
+
+    >>> def show_elapsed():
+    ...     def handler(**kwargs):
+    ...         print kwargs["elapsed"],
+    ...     return handler
+
+    >>> function = breakpoint.function(on_yield=show_elapsed)
+    >>> count_to = function(count_to_with_breakpoints)
+    >>> count_to(3)
+    0.0 1.0 2.0 3.0
+    3
+
+Note that the `on_yield` argument does not a need a handler, but rather 
+a *handler factory*: every new call to `count_to` triggers a call to
+`show_elapsed` that returns a fresh handler. 
+This feature can be used to manage handler state, 
+for example to count the number of yields:
+
+    >>> def show_elapsed():
+    ...     i = [0]
+    ...     def handler(**kwargs):
+    ...         print "#{0}:{1}".format(i[0], kwargs["elapsed"]),
+    ...         i[0] += 1
+    ...     return handler
+
+    >>> function = breakpoint.function(on_yield=show_elapsed)
+    >>> count_to = function(count_to_with_breakpoints)
+    >>> count_to(3)
+    #0:0.0 #1:1.0 #2:2.0 #3:3.0
+    3
+
+Note that callables can be used instead of functions as handlers and
+handler factories, so the object-oriented implementation of `show_elapsed` 
+below is a valid alernative to the code above that uses closures.
+
+    >>> class show_elapsed(object):
+    ...     def __init__(self):
+    ...         self.i = 0
+    ...     def __call__(self, **kwargs):
+    ...         print "#{0}:{1}".format(self.i, kwargs["elapsed"]),
+    ...         self.i += 1
+
+    >>> function = breakpoint.function(on_yield=show_elapsed)
+    >>> count_to = function(count_to_with_breakpoints)
+    >>> count_to(3)
+    #0:0.0 #1:1.0 #2:2.0 #3:3.0
+    3
+
+
+Yield and display partial results
+--------------------------------------------------------------------------------
+
+So far, the breakpoints that we have added yield no value, except the last one. 
+Instead, we can leverage the breakpoints to deliver *partial results*, a summary 
+of our computations so far, even if the function execution is not over:
+
+    >>> def count_to_with_breakpoints(n):
+    ...     i = 0
+    ...     while i < n:
+    ...         yield i
+    ...         time.sleep(1.0); i = i + 1
+    ...     yield i
+
+    >>> def show_result():
+    ...     def handler(**kwargs):
+    ...         print kwargs["result"],
+    ...     return handler
+
+    >>> function = breakpoint.function(on_yield=show_result)
+    >>> count_to = function(count_to_with_breakpoints)
+    >>> count_to(3)
+    0 1 2 3
+    3
+
+
+Yield and display progress info
+--------------------------------------------------------------------------------
+
+Many functions that perform computations have an idea of how far they are from
+the goal. This *progress* can be measured as a floating-point number between
+`0.0` and `1.0` and returned to the handler with the partial result:
+
+    >>> def count_to_with_breakpoints(n):
+    ...     i = 0
+    ...     while i < n:
+    ...         progress = i / n
+    ...         yield progress, i
+    ...         time.sleep(1.0); i = i + 1
+    ...     progress = i / n 
+    ...     yield progress, i
+
+    >>> def show_progress():
+    ...     def handler(**kwargs):
+    ...         print "{0:.2f}".format(kwargs["progress"]),
+    ...     return handler
+
+The use of progress has to be notified with `progress=True`, otherwise we
+could assume that the `progress, i` pair is the partial result.
+
+    >>> function = breakpoint.function(on_yield=show_progress, progress=True)
+    >>> count_to = function(count_to_with_breakpoints)
+    >>> count_to(3)
+    0.00 0.33 0.67 1.00
+    3
+
+With this set of options, the addition of progress in yields does not impact the 
+behavior of partial values:
+
+    >>> function = breakpoint.function(on_yield=show_result, progress=True)
+    >>> count_to = function(count_to_with_breakpoints)
+    >>> count_to(3)
+    0 1 2 3
+    3
+
+The availability of a progress provide an estimate for remaining time:
+
+    >>> def show_time():
+    ...     def handler(**kwargs):
+    ...         elapsed, remaining = kwargs["elapsed"], kwargs["remaining"]
+    ...         print "elapsed:", elapsed, "-- remaining:", remaining
+    ...     return handler
+
+    >>> function = breakpoint.function(on_yield=show_time, progress=True)
+    >>> count_to = function(count_to_with_breakpoints)
+    >>> count_to(3)
+    elapsed: 0.0 -- remaining: nan
+    elapsed: 1.0 -- remaining: 2.0
+    elapsed: 2.0 -- remaining: 1.0
+    elapsed: 3.0 -- remaining: 0.0
+    3
+
+
+Breakpoint period adaptation
+--------------------------------------------------------------------------------
+
+We can specify the time `dt` that we would like to have between two breakpoints.
+This information is available as a breakpoint period multiplier send at each
+breakpoint. Having multiplier equal to 2.0 for example means that the previous
+period between two breakpoints was too short by a factor of 2.0.
+
+In this example, the information is displayed, but the function does not adapt
+its behavior to satisfy the requirement:
+
+    >>> def count_to_with_breakpoints(n):
+    ...     i = 0
+    ...     while i < n:
+    ...         progress = i / n
+    ...         x = yield progress, i
+    ...         print "x:", x
+    ...         time.sleep(1.0); i = i + 1
+    ...     progress = i / n 
+    ...     yield progress, i
+
+We can use a dedicated handler to see how the effective period between 
+breakpoints stays the same despite the information sent to the function
+at each breakpoint.
+
+    >>> def show_dt():
+    ...     t = [None]
+    ...     def handler(**kwargs):
+    ...         if t[0] is not None: # skip first call
+    ...             print "dt: {0},".format(time.time() - t[0]),
+    ...         t[0] = time.time()
+    ...     return handler
+
+    >>> function = breakpoint.function(on_yield=show_dt, progress=True, dt=2.0)
+    >>> count_to = function(count_to_with_breakpoints)
+    >>> count_to(10)
+    x: None
+    dt: 1.0, x: 2.0
+    dt: 1.0, x: 2.0
+    dt: 1.0, x: 2.0
+    dt: 1.0, x: 2.0
+    dt: 1.0, x: 2.0
+    dt: 1.0, x: 2.0
+    dt: 1.0, x: 2.0
+    dt: 1.0, x: 2.0
+    dt: 1.0, x: 2.0
+    dt: 1.0,
+    10
+
+The code of the function shall be adapted to solve this issue:
+
+    >>> def count_to_with_breakpoints(n):
+    ...     i = 0
+    ...     count, threshold = 0, 1
+    ...     while i < n:
+    ...         count += 1
+    ...         if count >= threshold:
+    ...             count = 0
+    ...             progress = i / n
+    ...             x = yield progress, i
+    ...             print "x:", x
+    ...             if x is not None:
+    ...               threshold = int(round(x * threshold))
+    ...               threshold = max(1, threshold)
+    ...         time.sleep(1.0); i = i + 1
+    ...     progress = i / n 
+    ...     yield progress, i
+
+    >>> function = breakpoint.function(on_yield=show_dt, progress=True, dt=2.0)
+    >>> count_to = function(count_to_with_breakpoints)
+    >>> count_to(10)
+    x: None
+    dt: 1.0, x: 2.0
+    dt: 2.0, x: 1.0
+    dt: 2.0, x: 1.0
+    dt: 2.0, x: 1.0
+    dt: 2.0, x: 1.0
+    dt: 1.0,
+    10
+
+The adaption of the generator function code to deal with period multipliers
+is dependent of the structure of the code in the first place. Once you have
+found a low-level pattern that meets your needs, you can usually factored it
+out for reusability and readability. For example, here we can intoduce an 
+`Alarm` class to achieve the same result:
+
+    >>> class Alarm(object):
+    ...    def __init__(self):
+    ...        self.count = 0
+    ...        self.threshold = 1
+    ...    def __iter__(self):
+    ...        return self
+    ...    def next(self):
+    ...        self.count += 1
+    ...        return (self.count >= self.threshold)
+    ...    def update(self, multiplier):
+    ...        self.count = 0
+    ...        if multiplier is not None:
+    ...            self.threshold = int(round(multiplier * self.threshold))
+    ...            self.threshold = max(1, self.threshold)
+
+The generator function can then be defined as:
+
+    >>> def count_to_with_breakpoints(n):
+    ...     i = 0
+    ...     alarm = breakpoint.Alarm()
+    ...     while i < n:
+    ...         if alarm.next():
+    ...             progress = i / n
+    ...             x = yield progress, i
+    ...             print "x:", x
+    ...             alarm.update(x)
+    ...         time.sleep(1.0); i = i + 1
+    ...     progress = i / n 
+    ...     yield progress, i
+
+    >>> function = breakpoint.function(on_yield=show_dt, progress=True, dt=2.0)
+    >>> count_to = function(count_to_with_breakpoints)
+    >>> count_to(10)
+    x: None
+    dt: 1.0, x: 2.0
+    dt: 2.0, x: 1.0
+    dt: 2.0, x: 1.0
+    dt: 2.0, x: 1.0
+    dt: 2.0, x: 1.0
+    dt: 1.0,
+    10
+
