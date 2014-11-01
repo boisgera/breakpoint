@@ -2,7 +2,7 @@
 # coding: utf-8
 
 from __future__ import division # should be in the doctest, but it doesn't work.
-# This is the reason why we are not using the file-based doctest methods.
+# This is the main reason why we are not using the file-based doctest methods.
 
 filename = "doctests.txt"
 __doc__ = open(filename).read()

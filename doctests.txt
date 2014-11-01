@@ -354,3 +354,50 @@ The generator function can then be defined as:
     dt: 1.0,
     10
 
+Final word of advice: obviously, you should not ask the library to aim for zero 
+or negative periods between breakpoints.
+
+    >>> function = breakpoint.function(on_yield=show_dt, progress=True, dt=0.0)\
+    ... # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    ValueError: ...
+
+
+Remaing Time Estimation Algorithm
+--------------------------------------------------------------------------------
+
+When progress tracking is enabled, the remaining time is estimated with the
+progress so far and the corresponding elapsed time, assuming that the function
+execution will proceed at the same average speed. For example:
+
+    >>> def sleep_interrupted():
+    ...     yield 0.0, None
+    ...     time.sleep(1.0)
+    ...     yield 0.25, None
+    ...     time.sleep(2.0)
+    ...     yield 0.50, None
+    ...     time.sleep(6.0)
+    ...     yield 0.75, None
+    ...     time.sleep(4.0)
+    ...     yield 1.00, None
+
+    >>> def show_progress():
+    ...     def handler(progress, elapsed, remaining, **kwargs):
+    ...         print "progress: {0:3.0f} %,".format(progress * 100),
+    ...         print "elapsed: {0:4.1f}".format(elapsed),
+    ...         print "--> remaining: {0:3.1f}".format(remaining)
+    ...     return handler
+
+    >>> function = breakpoint.function(on_yield=show_progress, progress=True)
+    >>> sleep = function(sleep_interrupted)
+    >>> sleep()
+    progress:   0 %, elapsed:  0.0 --> remaining: nan
+    progress:  25 %, elapsed:  1.0 --> remaining: 3.0
+    progress:  50 %, elapsed:  3.0 --> remaining: 3.0
+    progress:  75 %, elapsed:  9.0 --> remaining: 3.0
+    progress: 100 %, elapsed: 13.0 --> remaining: 0.0
+
+The behavior of the time estimation algorithm when the progress is zero is
+unspecified.
+

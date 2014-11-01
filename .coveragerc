@@ -4,3 +4,6 @@ branch = True
 [report]
 exclude_lines = 
     not documented
+    undocumented
+    not specified
+    unspecified

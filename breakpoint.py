@@ -17,7 +17,7 @@ pass
 __main__ = (__name__ == "__main__")
 
 __name__    = "breakpoint"
-__version__ = "2.1.2"
+__version__ = "2.1.3"
 __license__ = "MIT License" 
 __author__  = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
 __license__ = "MIT License"
@@ -80,7 +80,7 @@ def function(on_yield=None, progress=False, dt=None):
     """
     if dt is not None:
         dt = float(dt)
-        if dt < 0.0:
+        if dt <= 0.0:
           error = "dt={0} is invalid, use a positive number (or None)."
           raise ValueError(error.format(dt))
 
@@ -102,9 +102,9 @@ def function(on_yield=None, progress=False, dt=None):
                     else:
                         progress_, result = None, info
 
+                    rt = float("nan")
                     if t0 is None: # first yield
                         t0 = t = time.time()
-                        rt = float("nan")
                     else:
                         t_ = time.time()
                         dt_ = t_ - t
@@ -112,29 +112,29 @@ def function(on_yield=None, progress=False, dt=None):
                         if dt:
                             try:
                                 multiplier = dt / dt_
-                            except ZeroDivisionError:
+                            except ZeroDivisionError: # unspecified behavior
                                 multiplier = float("inf")
-                        if progress_ is None:
-                            rt = float("nan")
-                        else:
+                        if progress_ is not None:
+                            q = (1.0 - progress_) * (t - t0)
                             try:
-                                rt = (1.0 - progress_) / progress_ * (t - t0)
-                            except ZeroDivisionError:
-                                if progress < 1.0:
-                                    rt = float("inf")
-                                else:
-                                    rt = float("nan")
+                                rt = q / progress_
+                            except ZeroDivisionError: # unspecified behavior
+                                if q != 0.0:
+                                    sign = (q > 0.0) - (q < 0.0) 
+                                    rt = sign * float("inf")
+                                # otherwise, rt = 0.0 / 0.0, and the default
+                                # (rt = nan) is fine.
                     if yield_handler:
                         handler_result = yield_handler(progress=progress_, 
                                                        elapsed=t-t0, 
                                                        remaining=rt, 
-                                                       result=result, 
+                                                       result=result,
                                                        # not documented:
-                                                       args=args,
+                                                       args=args,     
                                                        kwargs=kwargs)
 
                         if handler_result is not None:
-                            return handler_result # not documented feature.
+                            return handler_result # not documented.
                             # The case where we want to stop the execution
                             # *and* return None is not supported.
                 except StopIteration:
