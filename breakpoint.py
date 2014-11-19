@@ -17,7 +17,7 @@ pass
 __main__ = (__name__ == "__main__")
 
 __name__    = "breakpoint"
-__version__ = "2.1.3"
+__version__ = "2.1.4"
 __license__ = "MIT License" 
 __author__  = u"Sébastien Boisgérault <Sebastien.Boisgerault@mines-paristech.fr>"
 __license__ = "MIT License"
